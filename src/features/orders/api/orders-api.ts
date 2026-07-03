@@ -1,19 +1,31 @@
 import { apiClient } from '@/lib/api-client';
-import type { OrderStatus, PaginatedResult, PaginationParams } from '@/types';
-import type { Order } from '../types';
+import type { OrderStatus, PaginatedResult } from '@/types';
+import type {
+  AdminOrderListParams,
+  Order,
+  OrderSummary,
+  OrderSummaryParams,
+} from '../types';
 
 export const ordersApi = {
-  /** [admin] List all orders. BE only accepts page/limit/q. */
-  list: (params: PaginationParams) =>
-    apiClient.get<PaginatedResult<Order>>('/orders/admin/all', { params }),
+  /**
+   * [admin] List orders. All filtering/search/sort/pagination is server-side:
+   * branchId, status, paymentStatus, q, sortBy, sortOrder, page, limit.
+   */
+  list: (params: AdminOrderListParams) =>
+    apiClient.get<PaginatedResult<Order>>('/admin/orders', { params }),
 
-  getById: (id: string) => apiClient.get<Order>(`/orders/${id}`),
+  /** [admin] Dashboard aggregate — branch/date-range scoped, not paginated. */
+  summary: (params: OrderSummaryParams) =>
+    apiClient.get<OrderSummary>('/admin/orders/summary', { params }),
+
+  getById: (id: string) => apiClient.get<Order>(`/admin/orders/${id}`),
 
   updateStatus: (id: string, status: OrderStatus) =>
-    apiClient.patch<Order>(`/orders/${id}/status`, { status }),
+    apiClient.patch<Order>(`/admin/orders/${id}/status`, { status }),
 
   confirmPayment: (id: string) =>
-    apiClient.post<Order>(`/orders/${id}/confirm-payment`),
+    apiClient.post<Order>(`/admin/orders/${id}/confirm-payment`),
 
-  cancel: (id: string) => apiClient.post<Order>(`/orders/${id}/cancel`),
+  cancel: (id: string) => apiClient.post<Order>(`/admin/orders/${id}/cancel`),
 };

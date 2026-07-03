@@ -1,30 +1,24 @@
 import { apiClient } from '@/lib/api-client';
+import type { PaginatedResult } from '@/types';
 import type {
   CreateProductInput,
-  ProductDetail,
+  Product,
   ProductListParams,
-  ProductListResponse,
   UpdateProductInput,
 } from '../types';
 
-/** Raw product entity returned by create/update (id is all the UI needs). */
-export interface ProductMutationResult {
-  id: string;
-  slug: string;
-  name: string;
-}
-
 export const productsApi = {
+  /** [admin] List products (raw entities, standard {data, meta} envelope). */
   list: (params: ProductListParams) =>
-    apiClient.get<ProductListResponse>('/products', { params }),
+    apiClient.get<PaginatedResult<Product>>('/admin/products', { params }),
 
-  getById: (id: string) => apiClient.get<ProductDetail>(`/products/${id}`),
+  getById: (id: string) => apiClient.get<Product>(`/admin/products/${id}`),
 
   create: (body: CreateProductInput) =>
-    apiClient.post<ProductMutationResult>('/products', body),
+    apiClient.post<Product>('/admin/products', body),
 
   update: (id: string, body: UpdateProductInput) =>
-    apiClient.patch<ProductMutationResult>(`/products/${id}`, body),
+    apiClient.patch<Product>(`/admin/products/${id}`, body),
 
-  remove: (id: string) => apiClient.delete<void>(`/products/${id}`),
+  remove: (id: string) => apiClient.delete<void>(`/admin/products/${id}`),
 };

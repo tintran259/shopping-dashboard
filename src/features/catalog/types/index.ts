@@ -21,86 +21,52 @@ export interface Category extends BaseEntity {
   parentId?: string;
 }
 
-// ── Read shapes (storefront/FE-shaped DTOs returned by the BE) ──────
-export interface ImageRef {
+// ── Raw entity shapes (returned by /admin/products) ─────────────────
+export interface ProductImage extends BaseEntity {
   url: string;
-  alt: string;
+  alt?: string;
+  isPrimary: boolean;
+  sortOrder: number;
 }
 
-export interface PriceRef {
-  amount: number;
-  compareAt: number | null;
-  currency: string;
+export interface ProductOptionValue extends BaseEntity {
+  value: string;
+  sortOrder: number;
 }
 
-export interface BranchStockRef {
-  branchId: string;
-  inStock: boolean;
-  quantity: number;
-}
-
-/** Item shape of `GET /products` (`items[]`). */
-export interface ProductSummary {
-  id: string;
-  slug: string;
-  name: string;
-  thumbnail: ImageRef;
-  defaultVariantId: string | null;
-  price: PriceRef;
-  priceVaries: boolean;
-  brand: { id: string; slug: string; name: string } | null;
-  rating?: { average: number; count: number };
-  flags: Record<string, boolean>;
-  inStock: boolean;
-  branchStock: BranchStockRef[];
-  status: ProductStatus;
-}
-
-export interface ProductVariantDetail {
-  id: string;
-  sku: string;
-  options: Record<string, string>;
-  price: PriceRef;
-  stock: number;
-  branchStock: BranchStockRef[];
-  image?: ImageRef;
-}
-
-export interface ProductOptionDetail {
-  id: string;
+export interface ProductOption extends BaseEntity {
   name: string;
   displayType: OptionDisplayType;
-  values: string[];
+  sortOrder: number;
+  values: ProductOptionValue[];
 }
 
-/** Shape of `GET /products/:id` (ProductDto). */
-export interface ProductDetail extends Omit<ProductSummary, 'thumbnail'> {
+export interface ProductVariant extends BaseEntity {
   sku: string;
-  images: ImageRef[];
+  price: string;
+  compareAtPrice?: string;
+  imageUrl?: string;
+  isActive: boolean;
+  /** The option values that define this variant (ids map into product.options). */
+  optionValues?: ProductOptionValue[];
+}
+
+/** Raw product entity (both list rows and detail come in this shape). */
+export interface Product extends BaseEntity {
+  slug: string;
+  name: string;
+  status: ProductStatus;
+  brandId?: string;
+  brand?: Brand;
   shortDescription?: string;
   description?: string;
-  attributes: {
-    key: string;
-    label: string;
-    value: string | string[];
-    group?: string;
-  }[];
-  options: ProductOptionDetail[];
-  variants: ProductVariantDetail[];
-  categories: { id: string; slug: string; name: string }[];
-  currency: string;
-}
-
-/** Envelope of `GET /products` — NOT the generic {data,meta} envelope. */
-export interface ProductListResponse {
-  items: ProductSummary[];
-  pagination: {
-    page: number;
-    pageSize: number;
-    total: number;
-    totalPages: number;
-  };
-  facets: unknown[];
+  basePrice: string;
+  compareAtPrice?: string;
+  currency?: string;
+  images?: ProductImage[];
+  options?: ProductOption[];
+  variants?: ProductVariant[];
+  categories?: Category[];
 }
 
 // ── Write DTOs (mirror BE Create/Update product DTO) ────────────────

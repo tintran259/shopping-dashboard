@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,14 +18,20 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ProductStatus, type PaginationMeta } from '@/types';
-import { formatCurrency } from '@/lib/format';
+import { ProductStatus } from '@/types';
+import { formatCurrency, formatNumber } from '@/lib/format';
 import { ROUTES } from '@/app/routes';
 import { useProducts } from '../hooks/use-products';
 import { PRODUCT_STATUS_LABEL } from '../lib/labels';
-import type { ProductSummary } from '../types';
+import type { Product } from '../types';
 
 const ALL = '__all__';
+
+/** Primary image (or first) of a product, if any. */
+function thumbnailOf(p: Product): string | undefined {
+  const imgs = p.images ?? [];
+  return (imgs.find((i) => i.isPrimary) ?? imgs[0])?.url;
+}
 
 export function ProductsPage() {
   const navigate = useNavigate();
@@ -46,42 +52,28 @@ export function ProductsPage() {
     sort: `${sort.field}:${sort.direction}`,
   });
 
-  // Ánh xạ pagination (page/pageSize/total/totalPages) → PaginationMeta chuẩn.
-  const meta: PaginationMeta | undefined = useMemo(() => {
-    const p = query.data?.pagination;
-    if (!p) return undefined;
-    return {
-      page: p.page,
-      limit: p.pageSize,
-      total: p.total,
-      pageCount: p.totalPages,
-    };
-  }, [query.data]);
-
-  const columns: ColumnDef<ProductSummary>[] = [
+  const columns: ColumnDef<Product>[] = [
     {
       id: 'name',
       header: 'Sản phẩm',
-      sortable: true,
-      cell: (p) => (
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
-            {p.thumbnail.url ? (
-              <img
-                src={p.thumbnail.url}
-                alt={p.thumbnail.alt || p.name}
-                className="size-full object-cover"
-              />
-            ) : (
-              <Package className="size-4 text-muted-foreground" />
-            )}
+      cell: (p) => {
+        const thumb = thumbnailOf(p);
+        return (
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+              {thumb ? (
+                <img src={thumb} alt={p.name} className="size-full object-cover" />
+              ) : (
+                <Package className="size-4 text-muted-foreground" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-medium">{p.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{p.slug}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="truncate font-medium">{p.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{p.slug}</p>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       id: 'brand',
@@ -90,26 +82,18 @@ export function ProductsPage() {
     },
     {
       id: 'basePrice',
-      header: 'Giá',
+      header: 'Giá cơ bản',
       sortable: true,
       headerClassName: 'text-right',
       className: 'text-right tabular-nums',
-      cell: (p) => (
-        <span>
-          {formatCurrency(p.price.amount)}
-          {p.priceVaries && <span className="text-muted-foreground"> +</span>}
-        </span>
-      ),
+      cell: (p) => formatCurrency(p.basePrice),
     },
     {
-      id: 'stock',
-      header: 'Tồn',
-      cell: (p) =>
-        p.inStock ? (
-          <StatusBadge kind="inventory" value="in_stock" />
-        ) : (
-          <StatusBadge kind="inventory" value="out_of_stock" />
-        ),
+      id: 'variants',
+      header: 'Biến thể',
+      headerClassName: 'text-right',
+      className: 'text-right tabular-nums text-muted-foreground',
+      cell: (p) => formatNumber(p.variants?.length ?? 0),
     },
     {
       id: 'status',
@@ -167,7 +151,7 @@ export function ProductsPage() {
 
       <DataTable
         columns={columns}
-        data={query.data?.items}
+        data={query.data?.data}
         rowKey={(p) => p.id}
         isLoading={query.isLoading}
         isError={query.isError}
@@ -184,7 +168,7 @@ export function ProductsPage() {
       />
 
       <Pagination
-        meta={meta}
+        meta={query.data?.meta}
         onPageChange={setPage}
         onLimitChange={(l) => {
           setLimit(l);

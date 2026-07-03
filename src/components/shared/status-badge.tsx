@@ -70,12 +70,15 @@ type StatusKind = keyof typeof REGISTRY;
 interface StatusBadgeProps {
   kind: StatusKind;
   value: string;
+  /** Override the display text while keeping the kind's color mapping — e.g. a
+   *  fulfillment-specific wording for the same underlying status value. */
+  label?: string;
 }
 
 /** Maps a domain enum value to a localized label + semantic badge color. */
-export function StatusBadge({ kind, value }: StatusBadgeProps) {
+export function StatusBadge({ kind, value, label }: StatusBadgeProps) {
   const map = REGISTRY[kind] as Record<string, StatusMeta>;
   const meta = map[value];
-  if (!meta) return <Badge variant="outline">{value}</Badge>;
-  return <Badge variant={meta.variant}>{meta.label}</Badge>;
+  if (!meta) return <Badge variant="outline">{label ?? value}</Badge>;
+  return <Badge variant={meta.variant}>{label ?? meta.label}</Badge>;
 }

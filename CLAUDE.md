@@ -114,17 +114,32 @@ src/
   first). Business errors (e.g. an order that can't be cancelled) come back as `400` with a
   Vietnamese message.
 
+### Admin route convention (BO ↔ SF separation)
+
+- **New admin endpoints live under `/admin/<resource>`** in their own
+  `admin-<resource>.controller.ts`, with the role guard at **class level**
+  (`@UseGuards(RolesGuard) @Roles(ADMIN) @ApiBearerAuth()`) so no route can forget it.
+  Admin controllers return **raw entities** (edit forms need the raw shape), not
+  storefront DTOs. Public/storefront routes stay on their existing paths.
+- **Migrate only where it fixes a real problem, not for uniformity.** `orders`
+  (`/admin/orders/*`) and `products` (`/admin/products/*`) were split because it fixed
+  concrete bugs (admin 403 on order detail/cancel; product form couldn't read raw
+  `basePrice`). `categories`, `brands`, `branches`, `inventory`, `vouchers`,
+  `locations/sync` deliberately stay on their old paths with per-method `@Roles` —
+  they have no such bug, so moving them is pure churn. Standardize one when you next
+  touch it, not in bulk.
+
 ### Route → endpoint map (admin-relevant)
 
 | BO area | Endpoint(s) | Notes |
 | ------- | ----------- | ----- |
 | Login | `POST /auth/login`, `GET /auth/me` | admin-only gate |
-| Products | `GET /products`, `GET /products/:id`, `POST /products`*, `PATCH /products/:id`*, `DELETE /products/:id`* | product + variants + options + images |
-| Categories | `GET /categories`, `GET /categories/:id`, `POST`*, `PATCH /:id`*, `DELETE /:id`* | |
-| Brands | `GET /brands`, `GET /brands/:id`, `POST`*, `PATCH /:id`*, `DELETE /:id`* | |
-| Branches | `GET /branches`, `POST /branches`*, `PATCH /branches/:id`*, `DELETE /branches/:id`* | |
+| Products | `GET /admin/products`*, `GET /admin/products/:id`*, `POST /admin/products`*, `PATCH /admin/products/:id`*, `DELETE /admin/products/:id`* | raw entities; `GET /products*` stays public storefront |
+| Categories | `GET /categories`, `GET /categories/:id`, `POST`*, `PATCH /:id`*, `DELETE /:id`* | old path, per-method guard |
+| Brands | `GET /brands`, `GET /brands/:id`, `POST`*, `PATCH /:id`*, `DELETE /:id`* | old path, per-method guard |
+| Branches | `GET /branches`, `POST /branches`*, `PATCH /branches/:id`*, `DELETE /branches/:id`* | old path, per-method guard |
 | Inventory | `GET /branches/inventory/variant/:variantId`, `PUT /branches/inventory`* | stock per variant × branch; PUT upserts |
-| Orders | `GET /orders/admin/all`*, `GET /orders/:id`, `PATCH /orders/:id/status`*, `POST /orders/:id/confirm-payment`*, `POST /orders/:id/cancel` | see order/stock rules |
+| Orders | `GET /admin/orders`* (filter/search/sort/paginate), `GET /admin/orders/:id`*, `PATCH /admin/orders/:id/status`*, `POST /admin/orders/:id/confirm-payment`*, `POST /admin/orders/:id/cancel`* | class-level admin guard, no ownership check; see order/stock rules |
 | Vouchers | `GET /vouchers`*, `POST`*, `PATCH /:id`*, `DELETE /:id`* | `GET /vouchers/validate` is public |
 | Locations | `GET /locations/provinces`, `GET /locations/provinces/:code/wards`, `POST /locations/sync`* | address data |
 | Search | `GET /search` | product lookup for pickers |

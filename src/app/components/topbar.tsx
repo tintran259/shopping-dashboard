@@ -2,7 +2,6 @@ import { PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUiStore } from '@/stores/ui-store';
 import { AccountMenu } from './account-menu';
-import { BranchSwitcher } from './branch-switcher';
 import { ThemeToggle } from './theme-toggle';
 
 export function Topbar() {
@@ -20,7 +19,6 @@ export function Topbar() {
         </Button>
       </div>
       <div className="flex items-center gap-2">
-        <BranchSwitcher />
         <ThemeToggle />
         <AccountMenu />
       </div>

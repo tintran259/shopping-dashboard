@@ -33,8 +33,12 @@ import {
 import { useOrder } from '../hooks/use-orders';
 import {
   FULFILLMENT_LABEL,
-  ORDER_STATUS_LABEL,
+  FULFILLMENT_STARTED_STATUSES,
   PAYMENT_METHOD_LABEL,
+  PREPAID_PAYMENT_METHODS,
+  SHIPPED_OR_BEYOND_STATUSES,
+  orderStatusLabel,
+  orderStatusOptions,
 } from '../lib/labels';
 import type { Order } from '../types';
 
@@ -75,8 +79,13 @@ function OrderDetailContent({ order }: { order: Order }) {
   const cancelOrder = useCancelOrder(order.id);
 
   const isCancelled = order.status === OrderStatus.CANCELLED;
-  const isDelivered = order.status === OrderStatus.DELIVERED;
   const isPaid = order.paymentStatus === PaymentStatus.PAID;
+  const isShippedOrBeyond = SHIPPED_OR_BEYOND_STATUSES.has(order.status);
+  const isPrepaid =
+    !!order.paymentMethodCode &&
+    PREPAID_PAYMENT_METHODS.has(order.paymentMethodCode);
+  const awaitingPrepayment = isPrepaid && !isPaid;
+  const needsRefund = isCancelled && isPaid;
   const addr = order.shippingAddress;
 
   return (
@@ -124,10 +133,20 @@ function OrderDetailContent({ order }: { order: Order }) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge kind="order" value={order.status} />
+              <StatusBadge
+                kind="order"
+                value={order.status}
+                label={orderStatusLabel(order.status, order.fulfillment)}
+              />
               <StatusBadge kind="payment" value={order.paymentStatus} />
               <StatusBadge kind="stock" value={order.stockStatus} />
             </div>
+
+            {needsRefund && (
+              <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                Đơn đã hủy nhưng khách đã thanh toán — cần hoàn tiền thủ công.
+              </p>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Cập nhật trạng thái</label>
@@ -140,9 +159,17 @@ function OrderDetailContent({ order }: { order: Order }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.values(OrderStatus).map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {ORDER_STATUS_LABEL[s]}
+                  {orderStatusOptions(order.fulfillment).map((s) => (
+                    <SelectItem
+                      key={s}
+                      value={s}
+                      disabled={
+                        awaitingPrepayment &&
+                        s !== OrderStatus.CANCELLED &&
+                        FULFILLMENT_STARTED_STATUSES.has(s)
+                      }
+                    >
+                      {orderStatusLabel(s, order.fulfillment)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -151,6 +178,12 @@ function OrderDetailContent({ order }: { order: Order }) {
                 Hệ thống (BE) sẽ kiểm tra tính hợp lệ của bước chuyển & tự động
                 cập nhật tồn kho.
               </p>
+              {awaitingPrepayment && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Đơn thanh toán trước ({PAYMENT_METHOD_LABEL[order.paymentMethodCode!]})
+                  chưa được xác nhận — cần xác nhận thanh toán trước khi xử lý đơn.
+                </p>
+              )}
             </div>
 
             <Separator />
@@ -169,7 +202,7 @@ function OrderDetailContent({ order }: { order: Order }) {
               <Button
                 className="w-full"
                 variant="destructive"
-                disabled={isCancelled || isDelivered}
+                disabled={isCancelled || isShippedOrBeyond}
                 onClick={() => setCancelOpen(true)}
               >
                 <Ban className="size-4" />

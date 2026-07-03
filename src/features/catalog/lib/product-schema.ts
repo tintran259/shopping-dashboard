@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { OptionDisplayType, ProductStatus } from '@/types';
 import type {
   CreateProductInput,
-  ProductDetail,
+  Product,
   ProductOptionInput,
   VariantInput,
 } from '../types';
@@ -88,36 +88,42 @@ export function emptyProductForm(): ProductFormValues {
   };
 }
 
-/** Map a fetched ProductDetail → editable form values. */
-export function productToForm(p: ProductDetail): ProductFormValues {
+/** Map a fetched raw Product entity → editable form values. */
+export function productToForm(p: Product): ProductFormValues {
+  // valueId → its option name, to rebuild each variant's {name, value} pairs.
+  const valueOption = new Map<string, string>();
+  for (const o of p.options ?? []) {
+    for (const v of o.values ?? []) valueOption.set(v.id, o.name);
+  }
+
   return {
     name: p.name,
     slug: p.slug,
     status: p.status,
-    brandId: p.brand?.id ?? NO_BRAND,
-    basePrice: String(p.price.amount),
-    compareAtPrice: p.price.compareAt != null ? String(p.price.compareAt) : '',
+    brandId: p.brandId ?? p.brand?.id ?? NO_BRAND,
+    basePrice: p.basePrice,
+    compareAtPrice: p.compareAtPrice ?? '',
     shortDescription: p.shortDescription ?? '',
     description: p.description ?? '',
-    categoryIds: p.categories.map((c) => c.id),
-    images: p.images.map((img, i) => ({
+    categoryIds: (p.categories ?? []).map((c) => c.id),
+    images: (p.images ?? []).map((img) => ({
       url: img.url,
-      alt: img.alt,
-      isPrimary: i === 0,
+      alt: img.alt ?? '',
+      isPrimary: img.isPrimary,
     })),
-    options: p.options.map((o) => ({
+    options: (p.options ?? []).map((o) => ({
       name: o.name,
       displayType: o.displayType,
-      values: o.values.join(', '),
+      values: (o.values ?? []).map((v) => v.value).join(', '),
     })),
-    variants: p.variants.map((v) => ({
+    variants: (p.variants ?? []).map((v) => ({
       sku: v.sku,
-      price: String(v.price.amount),
-      compareAtPrice: v.price.compareAt != null ? String(v.price.compareAt) : '',
-      imageUrl: v.image?.url ?? '',
-      optionValues: Object.entries(v.options).map(([name, value]) => ({
-        name,
-        value,
+      price: v.price,
+      compareAtPrice: v.compareAtPrice ?? '',
+      imageUrl: v.imageUrl ?? '',
+      optionValues: (v.optionValues ?? []).map((ov) => ({
+        name: valueOption.get(ov.id) ?? '',
+        value: ov.value,
       })),
     })),
   };

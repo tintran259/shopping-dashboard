@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -15,89 +15,137 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { OrderStatus, PaymentStatus } from '@/types';
+import { OrderStatus } from '@/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { ROUTES } from '@/app/routes';
-import { useOrders } from '@/features/orders';
+import { useBranches } from '@/features/inventory';
+import { useOrders, useOrderSummary } from '@/features/orders';
+import { RevenueAreaChart } from '../components/revenue-area-chart';
+import { OrdersBarChart, type StatusBar } from '../components/orders-bar-chart';
+import { PeriodFilter } from '../components/period-filter';
+import { buildAreaSeries, defaultPeriod, periodRange } from '../lib/period';
 
 /**
- * Overview built by aggregating the admin order list (BE has no dedicated
- * dashboard endpoint yet). Money values come straight from the BE.
+ * Overview aggregated server-side (SQL COUNT/SUM via `GET /admin/orders/summary`),
+ * scoped to the topbar branch switcher + the period filter below. Money values
+ * come straight from the BE.
  */
 export function DashboardPage() {
-  // Lấy tối đa 100 đơn gần nhất để tổng hợp nhanh phía client.
-  const { data, isLoading } = useOrders({ page: 1, limit: 100 });
+  const [period, setPeriod] = useState(defaultPeriod);
+  const range = useMemo(() => periodRange(period), [period]);
 
-  const stats = useMemo(() => {
-    const orders = data?.data ?? [];
-    const paidRevenue = orders
-      .filter((o) => o.paymentStatus === PaymentStatus.PAID)
-      .reduce((sum, o) => sum + Number(o.grandTotal || 0), 0);
-    const byStatus = Object.values(OrderStatus).reduce<Record<string, number>>(
-      (acc, s) => {
-        acc[s] = orders.filter((o) => o.status === s).length;
-        return acc;
-      },
-      {},
-    );
-    const pending = byStatus[OrderStatus.PENDING] ?? 0;
-    return {
-      total: data?.meta.total ?? orders.length,
-      paidRevenue,
-      pending,
-      byStatus,
-      recent: orders.slice(0, 6),
-    };
-  }, [data]);
+  const [currentBranchId, setCurrentBranchId] = useState<string | null>(null);
+  const { data: branches } = useBranches();
+  const branchName = currentBranchId
+    ? (branches?.find((b) => b.id === currentBranchId)?.name ?? null)
+    : null;
+
+  const { data: summary, isLoading } = useOrderSummary({
+    branchId: currentBranchId ?? undefined,
+    dateFrom: range.from.toISOString(),
+    dateTo: range.to.toISOString(),
+  });
+
+  const recent = useOrders({
+    page: 1,
+    limit: 6,
+    branchId: currentBranchId ?? undefined,
+    sortBy: 'placedAt',
+    sortOrder: 'DESC',
+  });
+
+  const pending = summary?.byStatus[OrderStatus.PENDING] ?? 0;
+  const delivered = summary?.byStatus[OrderStatus.DELIVERED] ?? 0;
+  const statusBars: StatusBar[] = Object.values(OrderStatus).map((s) => ({
+    status: s,
+    value: summary?.byStatus[s] ?? 0,
+  }));
+  const areaSeries = useMemo(
+    () => (summary ? buildAreaSeries(summary.series, range, period.kind) : []),
+    [summary, range, period.kind],
+  );
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Bảng điều khiển"
-        description="Tổng quan hoạt động kinh doanh (dựa trên 100 đơn gần nhất)."
+        description={
+          branchName
+            ? `Tổng quan hoạt động kinh doanh — ${branchName}`
+            : 'Tổng quan hoạt động kinh doanh — tất cả chi nhánh'
+        }
+        actions={
+          <PeriodFilter
+            value={period}
+            onChange={setPeriod}
+            branchId={currentBranchId}
+            onBranchChange={setCurrentBranchId}
+          />
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Doanh thu đã thu"
-          icon={<DollarSign className="size-4" />}
-          value={formatCurrency(stats.paidRevenue)}
+          icon={<DollarSign className="size-4.5" />}
+          value={formatCurrency(summary?.totalRevenue)}
           loading={isLoading}
+          accent="primary"
         />
         <StatCard
           title="Tổng số đơn"
-          icon={<ClipboardList className="size-4" />}
-          value={formatNumber(stats.total)}
+          icon={<ClipboardList className="size-4.5" />}
+          value={formatNumber(summary?.totalOrders)}
           loading={isLoading}
+          accent="info"
         />
         <StatCard
           title="Đơn chờ xử lý"
-          icon={<AlertTriangle className="size-4" />}
-          value={formatNumber(stats.pending)}
+          icon={<AlertTriangle className="size-4.5" />}
+          value={formatNumber(pending)}
           loading={isLoading}
+          accent="warning"
         />
         <StatCard
           title="Đơn đã giao"
-          icon={<PackageCheck className="size-4" />}
-          value={formatNumber(stats.byStatus[OrderStatus.DELIVERED] ?? 0)}
+          icon={<PackageCheck className="size-4.5" />}
+          value={formatNumber(delivered)}
           loading={isLoading}
+          accent="success"
         />
       </div>
+
+      {!(period.kind === 'day' && period.dateFrom === period.dateTo) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Doanh thu — {range.label}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-55 w-full" />
+            ) : (
+              <RevenueAreaChart data={areaSeries} />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Đơn theo trạng thái</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {Object.values(OrderStatus).map((s) => (
-              <div key={s} className="flex items-center justify-between">
-                <StatusBadge kind="order" value={s} />
-                <span className="text-sm font-medium tabular-nums">
-                  {formatNumber(stats.byStatus[s] ?? 0)}
-                </span>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-6 w-full" />
+                ))}
               </div>
-            ))}
+            ) : (
+              <OrdersBarChart data={statusBars} />
+            )}
           </CardContent>
         </Card>
 
@@ -106,14 +154,14 @@ export function DashboardPage() {
             <CardTitle>Đơn mới nhất</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {isLoading ? (
+            {recent.isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-9 w-full" />
               ))
-            ) : stats.recent.length === 0 ? (
+            ) : !recent.data?.data.length ? (
               <p className="text-sm text-muted-foreground">Chưa có đơn hàng.</p>
             ) : (
-              stats.recent.map((o) => (
+              recent.data.data.map((o) => (
                 <Link
                   key={o.id}
                   to={ROUTES.orderDetail(o.id)}
@@ -136,30 +184,52 @@ export function DashboardPage() {
   );
 }
 
+type StatAccent = 'primary' | 'info' | 'warning' | 'success';
+
+const STAT_ACCENT_CLASSES: Record<StatAccent, { chip: string; bar: string }> = {
+  primary: { chip: 'bg-primary/10 text-primary', bar: 'bg-primary' },
+  info: { chip: 'bg-info/10 text-info', bar: 'bg-info' },
+  warning: { chip: 'bg-warning/10 text-warning', bar: 'bg-warning' },
+  success: { chip: 'bg-success/10 text-success', bar: 'bg-success' },
+};
+
 function StatCard({
   title,
   value,
   icon,
   loading,
+  accent,
 }: {
   title: string;
   value: string;
   icon: React.ReactNode;
   loading?: boolean;
+  accent: StatAccent;
 }) {
+  const cls = STAT_ACCENT_CLASSES[accent];
   return (
-    <Card>
+    <Card className="relative overflow-hidden transition-shadow hover:shadow-md">
+      <div className={cn('absolute inset-x-0 top-0 h-1', cls.bar)} aria-hidden />
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
         </CardTitle>
-        <span className="text-muted-foreground">{icon}</span>
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-lg',
+            cls.chip,
+          )}
+        >
+          {icon}
+        </span>
       </CardHeader>
       <CardContent>
         {loading ? (
           <Skeleton className="h-8 w-24" />
         ) : (
-          <p className="text-2xl font-semibold tabular-nums">{value}</p>
+          <p className="truncate text-2xl font-semibold tracking-tight tabular-nums">
+            {value}
+          </p>
         )}
       </CardContent>
     </Card>

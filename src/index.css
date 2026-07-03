@@ -27,6 +27,11 @@
   --success: hsl(142 71% 30%);
   --warning: hsl(38 92% 50%);
   --info: hsl(217 91% 60%);
+
+  /* Chart series (validated vs light surface #fff; direct labels supply relief) */
+  --chart-revenue: #1baf7a;
+  --chart-orders: #2a78d6;
+  --chart-grid: hsl(240 5.9% 90%);
 }
 
 .dark {
@@ -53,6 +58,11 @@
   --success: hsl(142 60% 45%);
   --warning: hsl(38 92% 55%);
   --info: hsl(217 91% 65%);
+
+  /* Chart series (validated vs dark surface: in-band L, contrast >= 3:1) */
+  --chart-revenue: #199e70;
+  --chart-orders: #3987e5;
+  --chart-grid: hsl(240 3.7% 15.9%);
 }
 
 @theme inline {
