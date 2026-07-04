@@ -66,6 +66,7 @@ export function ProductEditPage() {
       >
         {query.data && (
           <ProductForm
+            productId={id}
             defaultValues={productToForm(query.data)}
             onSubmit={(values) => updateProduct.mutate(formToPayload(values))}
           />

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import {
@@ -23,25 +23,32 @@ import { ProductStatus } from '@/types';
 import { cn } from '@/lib/utils';
 import { useBrands, useCategories } from '../hooks/use-catalog-refs';
 import {
+  LOCKED_INVENTORY_STATUSES,
   NO_BRAND,
   productFormSchema,
+  roundToVnd,
+  skuPrefixFromSlug,
   slugify,
   type ProductFormValues,
 } from '../lib/product-schema';
 import { PRODUCT_STATUS_LABEL } from '../lib/labels';
 import { MultiImageUpload, SingleImageUpload } from './image-upload';
 import { ProductOptionsAndVariants } from './product-options-variants';
+import { StatusChangeConfirmDialog } from './status-change-confirm-dialog';
 
 /** Form element id — pages render the submit button in the top-right header
  *  via `<Button form={PRODUCT_FORM_ID} type="submit">`. */
 export const PRODUCT_FORM_ID = 'product-form';
 
 interface ProductFormProps {
+  /** Undefined for the create flow — there's no inventory to reset/preview
+   *  yet, so the status-change confirm dialog never applies there. */
+  productId?: string;
   defaultValues: ProductFormValues;
   onSubmit: (values: ProductFormValues) => void;
 }
 
-export function ProductForm({ defaultValues, onSubmit }: ProductFormProps) {
+export function ProductForm({ productId, defaultValues, onSubmit }: ProductFormProps) {
   const { data: brands } = useBrands();
   const { data: categories } = useCategories();
 
@@ -62,7 +69,49 @@ export function ProductForm({ defaultValues, onSubmit }: ProductFormProps) {
   const hasVariants = form.watch('hasVariants');
   const options = form.watch('options');
   const basePrice = form.watch('basePrice');
+  const slug = form.watch('slug');
   const selectedCategories = form.watch('categoryIds');
+
+  // Mã SKU (sản phẩm 1 loại) tự sinh từ slug. Sản phẩm MỚI (chưa có gì để
+  // giữ) → theo dõi slug sống suốt phiên tạo, cập nhật theo từng nhịp gõ tên;
+  // sản phẩm ĐANG SỬA (đã có slug ngay khi mở form) → không đụng vào SKU thật
+  // đã lưu dù slug có sửa lại, cùng nguyên tắc "SKU ổn định" như với biến thể.
+  const isExistingProduct = useRef(defaultValues.slug !== '');
+  useEffect(() => {
+    if (hasVariants || !slug || isExistingProduct.current) return;
+    form.setValue('singleSku', skuPrefixFromSlug(slug), {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  }, [hasVariants, slug, form]);
+  // Chọn "Hết hàng"/"Ngừng bán" không commit ngay — mở popup xác nhận kèm tồn
+  // kho hiện tại từng chi nhánh trước, vì BE sẽ đưa tất cả về 0 khi lưu.
+  const [pendingStatus, setPendingStatus] = useState<ProductStatus | null>(null);
+
+  // Giá gạch: nhập % giảm giá (tự tính ngược ra compareAtPrice) HOẶC nhập
+  // thẳng giá cụ thể — chỉ FE tính toán, BE vẫn chỉ nhận đúng 1 giá trị
+  // compareAtPrice như trước. `comparePercent` không thuộc schema/không gửi
+  // lên BE. Công thức: giá cơ bản = giá gạch − (giá gạch × %), nên
+  // giá gạch = giá cơ bản ÷ (1 − %/100) — vd giá cơ bản 150k, giảm 25% →
+  // giá gạch 200k (200 − 200×25% = 150).
+  const [comparePercent, setComparePercent] = useState('');
+  const compareAtPrice = form.watch('compareAtPrice');
+  const percentActive = comparePercent.trim() !== '';
+  const amountActive = !percentActive && !!compareAtPrice?.trim();
+
+  useEffect(() => {
+    if (!percentActive) return;
+    const base = Number(basePrice) || 0;
+    const pct = Number(comparePercent);
+    const valid = Number.isFinite(pct) && pct < 100;
+    const computed =
+      base > 0 && valid ? Math.max(0, roundToVnd(base / (1 - pct / 100))) : 0;
+    form.setValue('compareAtPrice', computed > 0 ? String(computed) : '', {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [percentActive, comparePercent, basePrice, form]);
+
   const toggleCategory = (id: string) => {
     const set = new Set(selectedCategories);
     if (set.has(id)) set.delete(id);
@@ -168,7 +217,7 @@ export function ProductForm({ defaultValues, onSubmit }: ProductFormProps) {
                   getValues={form.getValues}
                   hasVariants={hasVariants}
                   options={options}
-                  productName={name}
+                  slug={slug}
                   basePrice={basePrice}
                 />
                 {form.formState.errors.options?.message && (
@@ -196,7 +245,21 @@ export function ProductForm({ defaultValues, onSubmit }: ProductFormProps) {
                   name="status"
                   label="Trạng thái"
                   render={(f) => (
-                    <Select value={f.value} onValueChange={f.onChange}>
+                    <Select
+                      value={f.value}
+                      onValueChange={(next) => {
+                        const target = next as ProductStatus;
+                        if (
+                          productId &&
+                          target !== f.value &&
+                          LOCKED_INVENTORY_STATUSES.includes(target)
+                        ) {
+                          setPendingStatus(target);
+                          return;
+                        }
+                        f.onChange(next);
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -254,12 +317,33 @@ export function ProductForm({ defaultValues, onSubmit }: ProductFormProps) {
                   control={form.control}
                   name="compareAtPrice"
                   label="Giá gạch (tùy chọn)"
+                  description="Nhập % giảm giá so với giá gạch để tự tính, hoặc nhập thẳng giá cụ thể — chỉ chọn 1 trong 2."
                   render={(f) => (
-                    <MoneyInput
-                      {...f}
-                      value={f.value ?? ''}
-                      placeholder="Nhập giá gạch nếu có…"
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="relative">
+                        <Input
+                          inputMode="decimal"
+                          value={comparePercent}
+                          disabled={amountActive}
+                          onChange={(e) => {
+                            const next = e.target.value.replace(/[^\d.]/g, '');
+                            setComparePercent(next);
+                            if (!next.trim()) f.onChange('');
+                          }}
+                          placeholder="% giảm giá"
+                          className="pr-7 text-right tabular-nums"
+                        />
+                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          %
+                        </span>
+                      </div>
+                      <MoneyInput
+                        value={f.value ?? ''}
+                        onChange={f.onChange}
+                        disabled={percentActive}
+                        placeholder="Giá cụ thể…"
+                      />
+                    </div>
                   )}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -303,6 +387,22 @@ export function ProductForm({ defaultValues, onSubmit }: ProductFormProps) {
           </div>
         </div>
       </form>
+
+      {productId && pendingStatus && (
+        <StatusChangeConfirmDialog
+          open
+          onOpenChange={(o) => !o && setPendingStatus(null)}
+          productId={productId}
+          targetStatus={pendingStatus}
+          onConfirm={() => {
+            form.setValue('status', pendingStatus, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            setPendingStatus(null);
+          }}
+        />
+      )}
     </Form>
   );
 }

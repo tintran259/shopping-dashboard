@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   useFieldArray,
   useWatch,
@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import {
   emptyOption,
   generateVariants,
+  skuPrefixFromSlug,
   variantComboLabel,
   type ProductFormValues,
   type ProductOptionFormValue,
@@ -40,7 +41,7 @@ interface ProductOptionsAndVariantsProps {
   getValues: UseFormGetValues<ProductFormValues>;
   hasVariants: boolean;
   options: ProductOptionFormValue[];
-  productName: string;
+  slug: string;
   basePrice: string;
 }
 
@@ -84,9 +85,19 @@ function TagValuesInput({
   onChange: (values: string[]) => void;
 }) {
   const [draft, setDraft] = useState('');
+  // Tracks an in-progress IME composition (Unikey/Vietnamese input methods
+  // route even plain ASCII like "200G" through composition events). The
+  // Enter that CONFIRMS a composition also bubbles up as a normal
+  // key === 'Enter' keydown — without this guard we'd commit "200G" on that
+  // confirm keydown, then the composition-end still lands "G" (the last
+  // composed char) into the now-cleared input, which a trailing real Enter
+  // (or blur) commits as a second, spurious tag. `isComposing` alone isn't
+  // reliably set on the confirm keydown in every browser, so this is tracked
+  // explicitly via the composition events instead of trusting the event.
+  const composing = useRef(false);
 
-  const commit = () => {
-    const v = draft.trim();
+  const commit = (raw: string) => {
+    const v = raw.trim();
     if (v && !values.includes(v)) onChange([...values, v]);
     setDraft('');
   };
@@ -111,14 +122,24 @@ function TagValuesInput({
       <input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
+        onCompositionStart={() => {
+          composing.current = true;
+        }}
+        onCompositionEnd={() => {
+          composing.current = false;
+        }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ',') {
+          if ((e.key === 'Enter' || e.key === ',') && !composing.current) {
             e.preventDefault();
-            commit();
+            commit(e.currentTarget.value);
           }
         }}
-        onBlur={commit}
+        onBlur={(e) => commit(e.currentTarget.value)}
         placeholder="Nhập giá trị rồi Enter…"
+        spellCheck={false}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
         className="min-w-28 flex-1 border-0 bg-transparent px-1 py-1 text-sm outline-none placeholder:text-muted-foreground"
       />
     </div>
@@ -138,7 +159,7 @@ export function ProductOptionsAndVariants({
   getValues,
   hasVariants,
   options,
-  productName,
+  slug,
   basePrice,
 }: ProductOptionsAndVariantsProps) {
   const optionFields = useFieldArray<ProductFormValues, 'options'>({
@@ -170,7 +191,7 @@ export function ProductOptionsAndVariants({
   const canGenerate = options.length > 0 && options.every((o) => o.values.length > 0);
 
   const handleGenerate = () => {
-    const next = generateVariants(options, getValues('variants'), productName, basePrice);
+    const next = generateVariants(options, getValues('variants'), slug, basePrice);
     setValue('variants', next, { shouldValidate: true, shouldDirty: true });
     setSelected(new Set());
   };
@@ -209,10 +230,25 @@ export function ProductOptionsAndVariants({
           checked={hasVariants}
           onCheckedChange={(v) => {
             setValue('hasVariants', v, { shouldDirty: true });
-            // Bật lần đầu (chưa có nhóm tùy chọn nào) → tạo sẵn 1 nhóm trống
-            // để admin điền, thay vì hiện lưới rỗng không có gì để bấm.
-            if (v && optionFields.fields.length === 0) {
-              optionFields.append(emptyOption());
+            if (v) {
+              // Bật lần đầu (chưa có nhóm tùy chọn nào) → tạo sẵn 1 nhóm trống
+              // để admin điền, thay vì hiện lưới rỗng không có gì để bấm.
+              if (optionFields.fields.length === 0) optionFields.append(emptyOption());
+            } else {
+              // Tắt → options/variants không còn áp dụng nữa, xoá hẳn (tránh
+              // BE nhận options rỗng nhưng variants cũ còn sót lại). Sản phẩm
+              // vốn luôn là multi-variant (chưa từng có singleSku) sẽ có
+              // schema đòi "Nhập mã SKU" ngay khi tắt vì trường đó vẫn đang
+              // rỗng — tự sinh từ slug luôn để form hợp lệ, không bắt gõ tay;
+              // giữ nguyên nếu đã có sẵn giá trị (không ghi đè SKU thật).
+              optionFields.replace([]);
+              variantFields.replace([]);
+              if (!getValues('singleSku')?.trim() && slug) {
+                setValue('singleSku', skuPrefixFromSlug(slug), {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                });
+              }
             }
           }}
         />
@@ -223,8 +259,14 @@ export function ProductOptionsAndVariants({
           control={control}
           name="singleSku"
           label="Mã SKU"
+          description="Tự sinh từ slug sản phẩm — không sửa tay được, để đảm bảo không trùng SKU."
           render={(f) => (
-            <Input {...f} value={f.value ?? ''} placeholder="Nhập mã SKU…" />
+            <Input
+              {...f}
+              value={f.value ?? ''}
+              disabled
+              placeholder="Tự sinh sau khi nhập tên sản phẩm…"
+            />
           )}
         />
       ) : (
@@ -349,8 +391,9 @@ export function ProductOptionsAndVariants({
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Bạn có thể chỉnh sửa ảnh, SKU, giá cho từng biến thể — tồn kho
-                nhập ở trang Tồn kho sau khi tạo xong sản phẩm.
+                SKU tự sinh từ slug, không sửa tay được. Bạn vẫn chỉnh được
+                ảnh, giá cho từng biến thể — tồn kho nhập ở trang Tồn kho sau
+                khi tạo xong sản phẩm.
               </p>
 
               <div className="rounded-lg border">
@@ -362,6 +405,7 @@ export function ProductOptionsAndVariants({
                       <TableHead>Tên biến thể</TableHead>
                       <TableHead>SKU</TableHead>
                       <TableHead className="text-right">Giá (đ)</TableHead>
+                      <TableHead className="text-right">Giá gạch (đ)</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -397,7 +441,13 @@ export function ProductOptionsAndVariants({
                           <FormField
                             control={control}
                             name={`variants.${index}.sku`}
-                            render={(f) => <Input {...f} className="h-8" />}
+                            render={(f) => (
+                              <Input
+                                {...f}
+                                className="h-8 text-muted-foreground"
+                                disabled
+                              />
+                            )}
                           />
                         </TableCell>
                         <TableCell>
@@ -406,6 +456,20 @@ export function ProductOptionsAndVariants({
                             name={`variants.${index}.price`}
                             render={(f) => (
                               <MoneyInput {...f} value={f.value ?? ''} className="h-8" />
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormField
+                            control={control}
+                            name={`variants.${index}.compareAtPrice`}
+                            render={(f) => (
+                              <MoneyInput
+                                {...f}
+                                value={f.value ?? ''}
+                                placeholder="Không bắt buộc"
+                                className="h-8"
+                              />
                             )}
                           />
                         </TableCell>

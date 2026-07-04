@@ -28,3 +28,13 @@ export function useProduct(id: string | undefined) {
     enabled: !!id,
   });
 }
+
+/** Powers the confirm dialog shown before switching a product to
+ *  out_of_stock/discontinued — see `StatusChangeConfirmDialog`. */
+export function useProductInventorySummary(id: string | undefined) {
+  return useQuery({
+    queryKey: [...productKeys.detail(id ?? ''), 'inventory-summary'],
+    queryFn: () => productsApi.getInventorySummary(id as string),
+    enabled: !!id,
+  });
+}

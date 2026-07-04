@@ -103,6 +103,14 @@ export type FlatVariantFormValue = ProductFormValues['variants'][number];
 const NO_BRAND = '__none__';
 export { NO_BRAND };
 
+/** Setting either status forces every branch's stock to 0/out_of_stock
+ *  BE-side and blocks further inventory edits until the product moves out of
+ *  this set — see `StatusChangeConfirmDialog` and the Inventory page's lock. */
+export const LOCKED_INVENTORY_STATUSES: ProductStatus[] = [
+  ProductStatus.OUT_OF_STOCK,
+  ProductStatus.DISCONTINUED,
+];
+
 /** "Trà Ô Long 500g" → "tra-o-long-500g" (bỏ dấu tiếng Việt, kebab-case). */
 export function slugify(input: string): string {
   return input
@@ -124,15 +132,17 @@ function skuToken(value: string): string {
     .replace(/[^A-Z0-9]/g, '');
 }
 
-/** "Áo thun basic" → "ATB" — chữ cái đầu mỗi từ trong tên sản phẩm. */
-function productPrefix(name: string): string {
-  const letters = name
-    .trim()
-    .split(/\s+/)
-    .map((w) => skuToken(w)[0])
-    .filter(Boolean)
-    .join('');
-  return letters.slice(0, 6) || 'SP';
+/** "tra-o-long-500g" → "TRA-O-LONG-500G" — SKU luôn tự sinh từ slug (không
+ *  cho nhập tay) vì slug đã được BE đảm bảo duy nhất trên toàn hệ thống, nên
+ *  SKU suy từ đó gần như không thể đụng hàng với sản phẩm khác. */
+export function skuPrefixFromSlug(slug: string): string {
+  return slug.toUpperCase() || 'SP';
+}
+
+/** VND không có đơn vị lẻ dưới 1.000 trên thực tế — làm tròn tới nghìn gần
+ *  nhất (vd 166.667 → 167.000) thay vì để nguyên số lẻ từ phép chia %. */
+export function roundToVnd(value: number): number {
+  return Math.round(value / 1000) * 1000;
 }
 
 /** "Trắng / S" — nhãn hiển thị của 1 tổ hợp giá trị tuỳ chọn, theo đúng thứ tự
@@ -171,11 +181,11 @@ function cartesianProduct(
 export function generateVariants(
   options: ProductOptionFormValue[],
   existing: FlatVariantFormValue[],
-  productName: string,
+  slug: string,
   basePrice: string,
 ): FlatVariantFormValue[] {
   const combos = cartesianProduct(options);
-  const prefix = productPrefix(productName);
+  const prefix = skuPrefixFromSlug(slug);
 
   return combos.map((combo) => {
     const match = existing.find((v) =>
@@ -289,7 +299,13 @@ export function productToForm(p: Product): ProductFormValues {
     hasVariants,
     singleSku: hasVariants ? '' : (variants[0]?.sku ?? ''),
     options,
-    variants: hasVariants ? variants : [],
+    // Luôn giữ `variants` kể cả khi !hasVariants — đây là chỗ duy nhất mang
+    // theo `id` của biến thể đơn (singleSku), formToPayload() đọc lại id đó
+    // từ variants[0]. Từng bỏ trống mảng này khi !hasVariants, khiến mọi lần
+    // lưu sản phẩm 1-SKU (kể cả chỉ đổi status) gửi lên KHÔNG id → BE tưởng
+    // là biến thể mới, insert trùng SKU với chính biến thể cũ trước khi kịp
+    // xoá → lỗi 409 trùng SKU giả.
+    variants,
   };
 }
 

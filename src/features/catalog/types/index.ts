@@ -116,3 +116,12 @@ export interface ProductListParams extends PaginationParams {
   /** "field:DIR" e.g. "createdAt:DESC". */
   sort?: string;
 }
+
+/** Stock for one branch summed across every variant of a product — used by
+ *  the confirm dialog before switching a product to out_of_stock/discontinued. */
+export interface ProductInventorySummaryRow {
+  branchId: string;
+  branchName: string;
+  quantity: number;
+  reserved: number;
+}

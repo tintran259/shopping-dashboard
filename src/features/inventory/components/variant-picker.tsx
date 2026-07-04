@@ -3,11 +3,14 @@ import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ProductStatus } from '@/types';
 import { useProducts, type Product, type ProductVariant } from '@/features/catalog';
 
 export interface PickedInventoryVariant {
   variantId: string;
+  productId: string;
   productName: string;
+  productStatus: ProductStatus;
   variantTitle: string;
   sku: string;
 }
@@ -90,7 +93,9 @@ export function VariantPicker({ onPick }: VariantPickerProps) {
                     onClick={() => {
                       onPick({
                         variantId: v.id,
+                        productId: p.id,
                         productName: p.name,
+                        productStatus: p.status,
                         variantTitle: variantLabel(v),
                         sku: v.sku,
                       });

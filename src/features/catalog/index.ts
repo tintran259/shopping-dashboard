@@ -5,4 +5,6 @@ export { CategoriesPage } from './pages/categories-page';
 export { BrandsPage } from './pages/brands-page';
 export { useProducts, useProduct, productKeys } from './hooks/use-products';
 export { useBrands, useCategories } from './hooks/use-catalog-refs';
+export { LOCKED_INVENTORY_STATUSES } from './lib/product-schema';
+export { PRODUCT_STATUS_LABEL } from './lib/labels';
 export type { Product, ProductVariant } from './types';

@@ -19,6 +19,10 @@ import type { BranchStock } from '../types';
 interface StockEditorProps {
   variantId: string;
   rows: BranchStock[];
+  /** Product is out_of_stock/discontinued — BE already rejects any edit, this
+   *  just disables the controls upfront instead of making the admin hit the
+   *  error first (see `InventoryPage`'s banner above this table). */
+  locked?: boolean;
 }
 
 /** One row per branch, whether or not it has a stock record yet — a variant
@@ -38,7 +42,7 @@ interface MergedRow {
  * Per-branch stock table for a variant. Only `quantity` is editable — `reserved`
  * is BE-managed (reserve→commit) and `available` is derived by the BE.
  */
-export function StockEditor({ variantId, rows }: StockEditorProps) {
+export function StockEditor({ variantId, rows, locked }: StockEditorProps) {
   const { data: branches } = useBranches();
   const upsert = useUpsertInventory();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -78,7 +82,7 @@ export function StockEditor({ variantId, rows }: StockEditorProps) {
             const draft = drafts[row.branchId] ?? String(row.quantity);
             const changed = row.isNew || draft !== String(row.quantity);
             const save = () => {
-              if (!changed || upsert.isPending) return;
+              if (locked || !changed || upsert.isPending) return;
               const quantity = Math.max(0, Number(draft) || 0);
               // Không gửi `status` — BE tự suy ra từ quantity (giữ nguyên
               // preorder nếu có), để trạng thái luôn khớp với số lượng bất
@@ -116,6 +120,7 @@ export function StockEditor({ variantId, rows }: StockEditorProps) {
                       min={0}
                       value={draft}
                       className="h-8 w-24"
+                      disabled={locked}
                       onChange={(e) =>
                         setDrafts((d) => ({ ...d, [row.branchId]: e.target.value }))
                       }
@@ -127,7 +132,7 @@ export function StockEditor({ variantId, rows }: StockEditorProps) {
                       size="icon"
                       variant="outline"
                       className="size-8"
-                      disabled={!changed || upsert.isPending}
+                      disabled={locked || !changed || upsert.isPending}
                       aria-label={row.isNew ? 'Gán vào chi nhánh' : 'Lưu tồn kho'}
                       onClick={save}
                     >

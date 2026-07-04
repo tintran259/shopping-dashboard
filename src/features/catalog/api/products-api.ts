@@ -3,6 +3,7 @@ import type { PaginatedResult } from '@/types';
 import type {
   CreateProductInput,
   Product,
+  ProductInventorySummaryRow,
   ProductListParams,
   UpdateProductInput,
 } from '../types';
@@ -21,4 +22,11 @@ export const productsApi = {
     apiClient.patch<Product>(`/admin/products/${id}`, body),
 
   remove: (id: string) => apiClient.delete<void>(`/admin/products/${id}`),
+
+  /** Per-branch stock summed across all variants — for the status-change
+   *  confirm dialog (out_of_stock/discontinued zero every branch). */
+  getInventorySummary: (id: string) =>
+    apiClient.get<ProductInventorySummaryRow[]>(
+      `/admin/products/${id}/inventory-summary`,
+    ),
 };

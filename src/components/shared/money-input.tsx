@@ -20,6 +20,7 @@ interface MoneyInputProps {
   placeholder?: string;
   className?: string;
   name?: string;
+  disabled?: boolean;
 }
 
 /** VND money field — shows thousand separators live as the admin types, while

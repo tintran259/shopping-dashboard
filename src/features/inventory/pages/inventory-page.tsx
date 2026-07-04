@@ -1,10 +1,14 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ROUTES } from '@/app/routes';
+import { LOCKED_INVENTORY_STATUSES, PRODUCT_STATUS_LABEL } from '@/features/catalog';
 import { StockEditor } from '../components/stock-editor';
 import { VariantPicker, type PickedInventoryVariant } from '../components/variant-picker';
 import { useVariantStock } from '../hooks/use-branches';
@@ -17,6 +21,8 @@ import { useVariantStock } from '../hooks/use-branches';
 export function InventoryPage() {
   const [selected, setSelected] = useState<PickedInventoryVariant | undefined>();
   const query = useVariantStock(selected?.variantId);
+  const locked =
+    !!selected && LOCKED_INVENTORY_STATUSES.includes(selected.productStatus);
 
   return (
     <div className="space-y-6">
@@ -50,6 +56,24 @@ export function InventoryPage() {
         </CardContent>
       </Card>
 
+      {selected && locked && (
+        <div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <div className="space-y-1">
+            <p>
+              Sản phẩm đang ở trạng thái &quot;
+              {PRODUCT_STATUS_LABEL[selected.productStatus]}&quot; — tồn kho đã
+              bị đưa về 0 ở mọi chi nhánh và không thể chỉnh lại.
+            </p>
+            <Button asChild variant="outline" size="sm" className="h-7 text-xs">
+              <Link to={ROUTES.productEdit(selected.productId)}>
+                Đổi trạng thái sản phẩm
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {!selected ? (
         <EmptyState
           title="Chưa chọn biến thể"
@@ -63,7 +87,11 @@ export function InventoryPage() {
         // Sản phẩm mới chưa có dòng tồn kho ở chi nhánh nào (mảng rỗng) vẫn
         // hiển thị đủ danh sách chi nhánh — đây chính là chỗ "gán" sản phẩm
         // vào chi nhánh lần đầu, xem StockEditor.
-        <StockEditor variantId={selected.variantId} rows={query.data ?? []} />
+        <StockEditor
+          variantId={selected.variantId}
+          rows={query.data ?? []}
+          locked={locked}
+        />
       )}
     </div>
   );
