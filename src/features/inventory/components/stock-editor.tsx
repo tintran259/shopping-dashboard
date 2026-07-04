@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { InventoryStatus } from '@/types';
 import { formatNumber } from '@/lib/format';
 import { useBranches, useUpsertInventory } from '../hooks/use-branches';
 import type { BranchStock } from '../types';
@@ -18,6 +19,19 @@ import type { BranchStock } from '../types';
 interface StockEditorProps {
   variantId: string;
   rows: BranchStock[];
+}
+
+/** One row per branch, whether or not it has a stock record yet — a variant
+ *  isn't "in" a branch until the first `PUT /branches/inventory` for that
+ *  pair, so a brand-new product must still show every branch here (with
+ *  quantity 0) or there'd be no way to assign it to one at all. */
+interface MergedRow {
+  branchId: string;
+  quantity: number;
+  reserved: number;
+  status: InventoryStatus;
+  /** Not yet saved for this branch — first save creates the row. */
+  isNew: boolean;
 }
 
 /**
@@ -28,6 +42,20 @@ export function StockEditor({ variantId, rows }: StockEditorProps) {
   const { data: branches } = useBranches();
   const upsert = useUpsertInventory();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  const rowByBranch = new Map(rows.map((r) => [r.branchId, r]));
+  const merged: MergedRow[] = (branches ?? []).map((b) => {
+    const existing = rowByBranch.get(b.id);
+    return existing
+      ? { ...existing, isNew: false }
+      : {
+          branchId: b.id,
+          quantity: 0,
+          reserved: 0,
+          status: InventoryStatus.OUT_OF_STOCK,
+          isNew: true,
+        };
+  });
 
   const branchName = (id: string) =>
     branches?.find((b) => b.id === id)?.name ?? id;
@@ -46,13 +74,28 @@ export function StockEditor({ variantId, rows }: StockEditorProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row) => {
+          {merged.map((row) => {
             const draft = drafts[row.branchId] ?? String(row.quantity);
-            const changed = draft !== String(row.quantity);
+            const changed = row.isNew || draft !== String(row.quantity);
+            const save = () => {
+              if (!changed || upsert.isPending) return;
+              const quantity = Math.max(0, Number(draft) || 0);
+              // Không gửi `status` — BE tự suy ra từ quantity (giữ nguyên
+              // preorder nếu có), để trạng thái luôn khớp với số lượng bất
+              // kể client nào gọi API này.
+              upsert.mutate({ branchId: row.branchId, variantId, quantity });
+            };
             return (
               <TableRow key={row.branchId} className="hover:bg-transparent">
                 <TableCell className="font-medium">
-                  {branchName(row.branchId)}
+                  <div className="flex items-center gap-2">
+                    {branchName(row.branchId)}
+                    {row.isNew && (
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                        Chưa gán
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatNumber(row.quantity)}
@@ -76,21 +119,17 @@ export function StockEditor({ variantId, rows }: StockEditorProps) {
                       onChange={(e) =>
                         setDrafts((d) => ({ ...d, [row.branchId]: e.target.value }))
                       }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') save();
+                      }}
                     />
                     <Button
                       size="icon"
                       variant="outline"
                       className="size-8"
                       disabled={!changed || upsert.isPending}
-                      aria-label="Lưu tồn kho"
-                      onClick={() =>
-                        upsert.mutate({
-                          branchId: row.branchId,
-                          variantId,
-                          quantity: Math.max(0, Number(draft) || 0),
-                          status: row.status,
-                        })
-                      }
+                      aria-label={row.isNew ? 'Gán vào chi nhánh' : 'Lưu tồn kho'}
+                      onClick={save}
                     >
                       <Check className="size-4" />
                     </Button>
