@@ -96,7 +96,13 @@ src/
 - **Server state = React Query, client state = Zustand.** Do not duplicate server state in
   Zustand. Flow is always `Component → hook (React Query) → api function → api-client`.
 - **Never call the API inside a component.** It goes through a feature `api/` hook.
-- Default to Server-driven lists: pagination/sort/filter are **server-side** (see below).
+- **All filtering is server-side — no exceptions.** Search, status/category/branch dropdowns,
+  date range, sort, pagination: every one of them is a query param sent to the BE endpoint.
+  Never fetch a list then narrow it with client-side `.filter()`/`.sort()`/slicing — if the BE
+  doesn't yet support a filter you need, add the query param to the BE first (see
+  `admin-order-query.dto.ts` / `admin-order-summary-query.dto.ts` for the pattern), don't
+  work around it in the FE. This applies to every list screen (Orders, Products, future Order
+  create's product picker, etc.), not just the ones that exist today.
 - Files kebab-case; components PascalCase; hooks `useXxx`.
 
 ## API Integration
@@ -184,8 +190,10 @@ Confirm/extend the BE before building these; stub the UI otherwise:
 
 - **Loading:** skeletons for list/detail; hold the loading state until data is ready so stale
   values never flash as errors.
-- **Tables:** server-side sort/filter/pagination via the shared `DataTable`; always provide
-  empty and error states.
+- **Tables:** server-side sort/filter/pagination via the shared `DataTable` — every filter is
+  a BE query param, never a client-side narrow of an already-fetched page; always provide
+  empty and error states. Debounce free-text search inputs (~300-400ms) before it hits the
+  query so typing doesn't fire an API call per keystroke.
 - **Mutations:** optimistic update + rollback on error; toast on success/failure; confirm
   destructive actions with `ConfirmDialog`.
 - **Forms:** zod schemas, inline field errors, disable submit while pending.

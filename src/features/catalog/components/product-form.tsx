@@ -1,7 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { Plus, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useForm } from 'react-hook-form';
 import {
   Card,
   CardContent,
@@ -19,30 +18,30 @@ import {
 } from '@/components/ui/select';
 import { Form } from '@/components/ui/form';
 import { FormField } from '@/components/shared/form-field';
-import { OptionDisplayType, ProductStatus } from '@/types';
+import { MoneyInput } from '@/components/shared/money-input';
+import { ProductStatus } from '@/types';
 import { cn } from '@/lib/utils';
 import { useBrands, useCategories } from '../hooks/use-catalog-refs';
 import {
   NO_BRAND,
   productFormSchema,
+  slugify,
   type ProductFormValues,
 } from '../lib/product-schema';
 import { PRODUCT_STATUS_LABEL } from '../lib/labels';
-import { VariantFields } from './variant-fields';
+import { MultiImageUpload, SingleImageUpload } from './image-upload';
+import { ProductOptionsAndVariants } from './product-options-variants';
+
+/** Form element id — pages render the submit button in the top-right header
+ *  via `<Button form={PRODUCT_FORM_ID} type="submit">`. */
+export const PRODUCT_FORM_ID = 'product-form';
 
 interface ProductFormProps {
   defaultValues: ProductFormValues;
-  submitLabel: string;
-  isSubmitting: boolean;
   onSubmit: (values: ProductFormValues) => void;
 }
 
-export function ProductForm({
-  defaultValues,
-  submitLabel,
-  isSubmitting,
-  onSubmit,
-}: ProductFormProps) {
+export function ProductForm({ defaultValues, onSubmit }: ProductFormProps) {
   const { data: brands } = useBrands();
   const { data: categories } = useCategories();
 
@@ -51,9 +50,18 @@ export function ProductForm({
     defaultValues,
   });
 
-  const images = useFieldArray({ control: form.control, name: 'images' });
-  const options = useFieldArray({ control: form.control, name: 'options' });
+  // Slug tự sinh từ tên. Ngừng tự sinh ngay khi người dùng gõ tay vào ô slug
+  // (hoặc khi đang sửa sản phẩm đã có slug) — vẫn sửa tay được bình thường.
+  const slugTouched = useRef(defaultValues.slug !== '');
+  const name = form.watch('name');
+  useEffect(() => {
+    if (slugTouched.current) return;
+    form.setValue('slug', slugify(name), { shouldValidate: false });
+  }, [name, form]);
 
+  const hasVariants = form.watch('hasVariants');
+  const options = form.watch('options');
+  const basePrice = form.watch('basePrice');
   const selectedCategories = form.watch('categoryIds');
   const toggleCategory = (id: string) => {
     const set = new Set(selectedCategories);
@@ -64,7 +72,11 @@ export function ProductForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form
+        id={PRODUCT_FORM_ID}
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="space-y-6"
+      >
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             <Card>
@@ -76,100 +88,46 @@ export function ProductForm({
                   control={form.control}
                   name="name"
                   label="Tên sản phẩm"
-                  render={(f) => <Input {...f} placeholder="Cà phê Cầu Đất" />}
+                  render={(f) => (
+                    <Input {...f} placeholder="Nhập tên sản phẩm…" />
+                  )}
                 />
                 <FormField
                   control={form.control}
                   name="slug"
                   label="Slug"
-                  description="Chỉ chữ thường, số và dấu gạch ngang."
-                  render={(f) => <Input {...f} placeholder="ca-phe-cau-dat" />}
+                  description="Tự sinh từ tên sản phẩm — có thể sửa lại."
+                  render={(f) => (
+                    <Input
+                      {...f}
+                      placeholder="tu-sinh-tu-ten-san-pham"
+                      onChange={(e) => {
+                        slugTouched.current = true;
+                        f.onChange(e);
+                      }}
+                    />
+                  )}
                 />
                 <FormField
                   control={form.control}
                   name="shortDescription"
                   label="Mô tả ngắn"
                   render={(f) => (
-                    <Textarea {...f} rows={2} placeholder="Mô tả ngắn gọn…" />
+                    <Textarea {...f} rows={2} placeholder="Nhập mô tả ngắn…" />
                   )}
                 />
                 <FormField
                   control={form.control}
                   name="description"
                   label="Mô tả chi tiết"
-                  render={(f) => <Textarea {...f} rows={5} />}
+                  render={(f) => (
+                    <Textarea
+                      {...f}
+                      rows={5}
+                      placeholder="Nhập mô tả chi tiết…"
+                    />
+                  )}
                 />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Tùy chọn (options)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {options.fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto]"
-                  >
-                    <FormField
-                      control={form.control}
-                      name={`options.${index}.name`}
-                      label="Tên"
-                      render={(f) => <Input {...f} placeholder="Màu" />}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`options.${index}.values`}
-                      label="Giá trị (phân tách bằng dấu phẩy)"
-                      render={(f) => <Input {...f} placeholder="Đen, Trắng" />}
-                    />
-                    <div className="flex items-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive"
-                        onClick={() => options.remove(index)}
-                        aria-label="Xóa tùy chọn"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                    <input
-                      type="hidden"
-                      {...form.register(`options.${index}.displayType`)}
-                    />
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    options.append({
-                      name: '',
-                      displayType: OptionDisplayType.PILL,
-                      values: '',
-                    })
-                  }
-                >
-                  <Plus className="size-4" />
-                  Thêm tùy chọn
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Biến thể (variants)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <VariantFields control={form.control} />
-                {form.formState.errors.variants?.root && (
-                  <p className="mt-2 text-xs font-medium text-destructive">
-                    {form.formState.errors.variants.root.message}
-                  </p>
-                )}
               </CardContent>
             </Card>
 
@@ -177,47 +135,52 @@ export function ProductForm({
               <CardHeader>
                 <CardTitle>Hình ảnh</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {images.fields.map((field, index) => (
-                  <div key={field.id} className="flex items-start gap-2">
-                    <FormField
-                      control={form.control}
-                      name={`images.${index}.url`}
-                      className="flex-1"
-                      render={(f) => <Input {...f} placeholder="https://…" />}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`images.${index}.alt`}
-                      className="flex-1"
-                      render={(f) => <Input {...f} placeholder="Mô tả ảnh" />}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="mt-0.5 text-destructive"
-                      onClick={() => images.remove(index)}
-                      aria-label="Xóa ảnh"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    images.append({
-                      url: '',
-                      alt: '',
-                      isPrimary: images.fields.length === 0,
-                    })
-                  }
-                >
-                  <Plus className="size-4" />
-                  Thêm ảnh
-                </Button>
+              <CardContent className="space-y-5">
+                <FormField
+                  control={form.control}
+                  name="thumbnail"
+                  label="Ảnh đại diện (thumbnail)"
+                  description="Ảnh chính hiển thị ở danh sách và trang sản phẩm."
+                  render={(f) => (
+                    <SingleImageUpload value={f.value} onChange={f.onChange} />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="gallery"
+                  label="Thư viện ảnh"
+                  description="Các ảnh chi tiết khác của sản phẩm — chọn được nhiều ảnh."
+                  render={(f) => (
+                    <MultiImageUpload value={f.value} onChange={f.onChange} />
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Tùy chọn & Biến thể</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ProductOptionsAndVariants
+                  control={form.control}
+                  setValue={form.setValue}
+                  getValues={form.getValues}
+                  hasVariants={hasVariants}
+                  options={options}
+                  productName={name}
+                  basePrice={basePrice}
+                />
+                {form.formState.errors.options?.message && (
+                  <p className="text-xs font-medium text-destructive">
+                    {form.formState.errors.options.message}
+                  </p>
+                )}
+                {form.formState.errors.variants?.message && (
+                  <p className="text-xs font-medium text-destructive">
+                    {form.formState.errors.variants.message}
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -267,9 +230,6 @@ export function ProductForm({
                     </Select>
                   )}
                 />
-                <Button type="submit" className="w-full" loading={isSubmitting}>
-                  {submitLabel}
-                </Button>
               </CardContent>
             </Card>
 
@@ -282,13 +242,25 @@ export function ProductForm({
                   control={form.control}
                   name="basePrice"
                   label="Giá cơ bản (VND)"
-                  render={(f) => <Input {...f} inputMode="decimal" placeholder="199000" />}
+                  render={(f) => (
+                    <MoneyInput
+                      {...f}
+                      value={f.value ?? ''}
+                      placeholder="Nhập giá cơ bản…"
+                    />
+                  )}
                 />
                 <FormField
                   control={form.control}
                   name="compareAtPrice"
                   label="Giá gạch (tùy chọn)"
-                  render={(f) => <Input {...f} inputMode="decimal" placeholder="249000" />}
+                  render={(f) => (
+                    <MoneyInput
+                      {...f}
+                      value={f.value ?? ''}
+                      placeholder="Nhập giá gạch nếu có…"
+                    />
+                  )}
                 />
                 <p className="text-xs text-muted-foreground">
                   Giá bán thực tế lấy theo từng biến thể; giá cơ bản chỉ để hiển

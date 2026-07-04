@@ -1,5 +1,6 @@
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import {
+  CustomerStatus,
   InventoryStatus,
   OrderStatus,
   OrderStockStatus,
@@ -56,6 +57,11 @@ const REVIEW_STATUS: Record<ReviewStatus, StatusMeta> = {
   [ReviewStatus.REJECTED]: { label: 'Đã ẩn', variant: 'destructive' },
 };
 
+const CUSTOMER_STATUS: Record<CustomerStatus, StatusMeta> = {
+  [CustomerStatus.ACTIVE]: { label: 'Hoạt động', variant: 'success' },
+  [CustomerStatus.DISABLED]: { label: 'Đã khóa', variant: 'destructive' },
+};
+
 const REGISTRY = {
   order: ORDER_STATUS,
   payment: PAYMENT_STATUS,
@@ -63,6 +69,7 @@ const REGISTRY = {
   product: PRODUCT_STATUS,
   inventory: INVENTORY_STATUS,
   review: REVIEW_STATUS,
+  customer: CUSTOMER_STATUS,
 } as const;
 
 type StatusKind = keyof typeof REGISTRY;

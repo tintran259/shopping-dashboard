@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -9,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { BranchSwitcher } from '@/components/shared/branch-switcher';
 import {
   DataTable,
@@ -18,12 +20,13 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { OrderStatus, PaymentStatus } from '@/types';
+import { OrderChannel, OrderStatus, PaymentStatus } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { ROUTES } from '@/app/routes';
 import { useBranches } from '@/features/inventory';
 import { useOrders } from '../hooks/use-orders';
 import {
+  ORDER_CHANNEL_LABEL,
   ORDER_STATUS_LABEL,
   PAYMENT_STATUS_LABEL,
   orderStatusLabel,
@@ -82,7 +85,15 @@ export function OrdersPage() {
       id: 'code',
       header: 'Mã đơn',
       sortable: true,
-      cell: (o) => <span className="font-medium">{o.code}</span>,
+      cell: (o) => (
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{o.code}</span>
+          {/* Chỉ gắn nhãn trường hợp ngoại lệ (BO tạo) — mặc định khách tự đặt. */}
+          {o.channel === OrderChannel.ADMIN && (
+            <Badge variant="info">{ORDER_CHANNEL_LABEL[OrderChannel.ADMIN]}</Badge>
+          )}
+        </div>
+      ),
     },
     {
       id: 'branch',
@@ -145,6 +156,12 @@ export function OrdersPage() {
       <PageHeader
         title="Đơn hàng"
         description="Lọc theo chi nhánh, tìm kiếm và sắp xếp — xử lý phía máy chủ."
+        actions={
+          <Button onClick={() => navigate(ROUTES.orderNew)}>
+            <Plus className="size-4" />
+            Tạo đơn hàng
+          </Button>
+        }
       />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">

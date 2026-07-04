@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import type { OrderStatus } from '@/types';
 import { ApiError } from '@/lib/api-error';
 import { ordersApi } from '../api/orders-api';
-import type { Order } from '../types';
+import type { CreateOrderInput, Order } from '../types';
 import { orderKeys } from './use-orders';
 
 /** Surface the BE message verbatim (business rules require exact wording). */
@@ -71,5 +71,27 @@ export function useCancelOrder(orderId: string) {
     },
     // Hủy không hợp lệ (đã giao...) → hiển thị message BE nguyên văn.
     onError: toastError('Hủy đơn hàng thất bại'),
+  });
+}
+
+/** Staff-entered order (phone order, walk-in…) — BE resolves price/stock itself. */
+export function useCreateOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateOrderInput) => ordersApi.create(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orderKeys.all });
+      toast.success('Đã tạo đơn hàng');
+    },
+    onError: toastError('Tạo đơn hàng thất bại'),
+  });
+}
+
+/** On-demand voucher preview while filling the create form — display only. */
+export function useValidateVoucher() {
+  return useMutation({
+    mutationFn: (params: { code: string; subtotal: number; shippingFee?: number }) =>
+      ordersApi.validateVoucher(params),
+    onError: toastError('Mã giảm giá không hợp lệ'),
   });
 }

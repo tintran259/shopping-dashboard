@@ -1,5 +1,6 @@
 import {
   FulfillmentType,
+  OrderChannel,
   OrderStatus,
   PaymentMethodCode,
   PaymentStatus,
@@ -11,12 +12,28 @@ export const FULFILLMENT_LABEL: Record<FulfillmentType, string> = {
   [FulfillmentType.PICKUP]: 'Nhận tại cửa hàng',
 };
 
+export const ORDER_CHANNEL_LABEL: Record<OrderChannel, string> = {
+  [OrderChannel.STOREFRONT]: 'Khách tự đặt',
+  [OrderChannel.ADMIN]: 'BO tạo',
+};
+
 export const PAYMENT_METHOD_LABEL: Record<PaymentMethodCode, string> = {
   [PaymentMethodCode.BANK_TRANSFER]: 'Chuyển khoản',
   [PaymentMethodCode.MOMO]: 'Ví MoMo',
   [PaymentMethodCode.ATM_CARD]: 'Thẻ ATM',
   [PaymentMethodCode.COD]: 'Thu hộ (COD)',
 };
+
+/** Payment methods selectable when staff create an order (BO). MoMo/ATM card
+ *  assume the customer completes payment themselves through a gateway redirect
+ *  at storefront checkout — that never happens for a staff-entered order, and
+ *  the BE has no live gateway integration anyway (`confirmPayment` is a manual
+ *  stand-in for all prepaid methods alike), so only COD and bank transfer are
+ *  meaningful here. The full enum still applies to storefront checkout. */
+export const BO_PAYMENT_METHODS = [
+  PaymentMethodCode.COD,
+  PaymentMethodCode.BANK_TRANSFER,
+] as const;
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   [OrderStatus.PENDING]: 'Chờ xử lý',

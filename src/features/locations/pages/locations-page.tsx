@@ -1,55 +1,14 @@
 import { useState } from 'react';
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiClient } from '@/lib/api-client';
 import { ApiError } from '@/lib/api-error';
 import { Button } from '@/components/ui/button';
 import { DataTable, type ColumnDef } from '@/components/shared/data-table';
 import { PageHeader } from '@/components/shared/page-header';
-
-export interface Province {
-  code: number;
-  name: string;
-}
-export interface Ward {
-  code: number;
-  name: string;
-  provinceCode: number;
-}
-
-const locationsApi = {
-  provinces: () => apiClient.get<Province[]>('/locations/provinces'),
-  wards: (code: number) =>
-    apiClient.get<Ward[]>(`/locations/provinces/${code}/wards`),
-  sync: () =>
-    apiClient.post<{ provinces: number; wards: number }>('/locations/sync'),
-};
-
-const keys = {
-  provinces: ['locations', 'provinces'] as const,
-  wards: (code: number) => ['locations', 'wards', code] as const,
-};
-
-export function useProvinces() {
-  return useQuery({
-    queryKey: keys.provinces,
-    queryFn: () => locationsApi.provinces(),
-    staleTime: Infinity,
-  });
-}
-
-export function useWards(provinceCode: number | undefined) {
-  return useQuery({
-    queryKey: keys.wards(provinceCode ?? 0),
-    queryFn: () => locationsApi.wards(provinceCode as number),
-    enabled: !!provinceCode,
-  });
-}
+import { locationsApi } from '../api/locations-api';
+import { locationKeys, useProvinces, useWards } from '../hooks/use-locations';
+import type { Province, Ward } from '../types';
 
 export function LocationsPage() {
   const qc = useQueryClient();
@@ -60,7 +19,7 @@ export function LocationsPage() {
   const sync = useMutation({
     mutationFn: () => locationsApi.sync(),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['locations'] });
+      qc.invalidateQueries({ queryKey: locationKeys.all });
       toast.success(
         `Đã đồng bộ ${res.provinces} tỉnh/thành và ${res.wards} phường/xã`,
       );

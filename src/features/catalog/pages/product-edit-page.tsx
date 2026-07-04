@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { QueryBoundary } from '@/components/shared/query-boundary';
 import { ROUTES } from '@/app/routes';
-import { ProductForm } from '../components/product-form';
+import { PRODUCT_FORM_ID, ProductForm } from '../components/product-form';
 import {
   useDeleteProduct,
   useUpdateProduct,
@@ -38,10 +38,22 @@ export function ProductEditPage() {
           <PageHeader title={query.data ? query.data.name : 'Sửa sản phẩm'} />
         </div>
         {query.data && (
-          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="size-4" />
-            Xóa
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="destructive"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="size-4" />
+              Xóa
+            </Button>
+            <Button
+              type="submit"
+              form={PRODUCT_FORM_ID}
+              loading={updateProduct.isPending}
+            >
+              Lưu thay đổi
+            </Button>
+          </div>
         )}
       </div>
 
@@ -55,8 +67,6 @@ export function ProductEditPage() {
         {query.data && (
           <ProductForm
             defaultValues={productToForm(query.data)}
-            submitLabel="Lưu thay đổi"
-            isSubmitting={updateProduct.isPending}
             onSubmit={(values) => updateProduct.mutate(formToPayload(values))}
           />
         )}

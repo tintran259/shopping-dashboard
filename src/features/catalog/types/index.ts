@@ -83,6 +83,8 @@ export interface ProductOptionInput {
 }
 
 export interface VariantInput {
+  /** Existing variant id (update path only) — omit for a new variant. */
+  id?: string;
   sku: string;
   price: string;
   compareAtPrice?: string;

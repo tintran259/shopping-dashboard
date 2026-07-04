@@ -1,5 +1,6 @@
 export { OrdersPage } from './pages/orders-page';
 export { OrderDetailPage } from './pages/order-detail-page';
+export { OrderCreatePage } from './pages/order-create-page';
 export {
   useOrders,
   useOrder,

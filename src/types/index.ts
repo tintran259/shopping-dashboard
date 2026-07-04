@@ -53,6 +53,14 @@ export const FulfillmentType = {
 export type FulfillmentType =
   (typeof FulfillmentType)[keyof typeof FulfillmentType];
 
+/** Where an order was placed from — lets the BO tell staff-entered orders
+ *  (phone/walk-in/B2B) apart from ones the customer placed themselves. */
+export const OrderChannel = {
+  STOREFRONT: 'storefront',
+  ADMIN: 'admin',
+} as const;
+export type OrderChannel = (typeof OrderChannel)[keyof typeof OrderChannel];
+
 export const CustomerRole = {
   CUSTOMER: 'customer',
   ADMIN: 'admin',
@@ -64,6 +72,12 @@ export const CustomerType = {
   B2B: 'b2b',
 } as const;
 export type CustomerType = (typeof CustomerType)[keyof typeof CustomerType];
+
+export const CustomerStatus = {
+  ACTIVE: 'active',
+  DISABLED: 'disabled',
+} as const;
+export type CustomerStatus = (typeof CustomerStatus)[keyof typeof CustomerStatus];
 
 export const OptionDisplayType = {
   SWATCH: 'swatch',

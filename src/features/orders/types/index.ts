@@ -1,6 +1,7 @@
 import type {
   BaseEntity,
   FulfillmentType,
+  OrderChannel,
   OrderStatus,
   OrderStockStatus,
   PaymentMethodCode,
@@ -82,6 +83,9 @@ export interface Order extends BaseEntity {
   customerId?: string;
   branchId: string;
   fulfillment: FulfillmentType;
+  /** Who placed the order — 'admin' = staff-entered (phone/walk-in/B2B), not
+   *  the customer themselves. */
+  channel: OrderChannel;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   stockStatus: OrderStockStatus;
@@ -100,4 +104,48 @@ export interface Order extends BaseEntity {
   notes?: string;
   placedAt?: string;
   items: OrderItem[];
+}
+
+// ── Create (staff-entered order, POST /admin/orders) ────────────────
+export interface CreateOrderItemInput {
+  variantId: string;
+  quantity: number;
+}
+
+/** Raw address entry (no saved address book for admin-created orders yet). */
+export interface CreateOrderShippingAddressInput {
+  recipientName: string;
+  phone: string;
+  provinceCode: number;
+  wardCode: number;
+  street: string;
+}
+
+export interface CreateOrderInvoiceInput {
+  companyName: string;
+  taxCode: string;
+  address: string;
+  email: string;
+}
+
+export interface CreateOrderInput {
+  branchId: string;
+  fulfillment: FulfillmentType;
+  paymentMethodCode: PaymentMethodCode;
+  recipientName: string;
+  recipientPhone: string;
+  recipientEmail?: string;
+  shippingAddress?: CreateOrderShippingAddressInput;
+  voucherCode?: string;
+  shippingFee?: string;
+  invoice?: CreateOrderInvoiceInput;
+  notes?: string;
+  items: CreateOrderItemInput[];
+}
+
+export interface VoucherValidation {
+  valid: boolean;
+  code: string;
+  type: string;
+  discount: number;
 }

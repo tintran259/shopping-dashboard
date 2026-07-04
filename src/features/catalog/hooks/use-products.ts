@@ -9,11 +9,15 @@ export const productKeys = {
   detail: (id: string) => [...productKeys.all, 'detail', id] as const,
 };
 
-export function useProducts(params: ProductListParams) {
+export function useProducts(
+  params: ProductListParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: productKeys.list(params),
     queryFn: () => productsApi.list(params),
     placeholderData: keepPreviousData,
+    enabled: options?.enabled,
   });
 }
 

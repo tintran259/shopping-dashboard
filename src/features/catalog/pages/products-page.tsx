@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { ProductStatus } from '@/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { ROUTES } from '@/app/routes';
+import { useCategories } from '../hooks/use-catalog-refs';
 import { useProducts } from '../hooks/use-products';
 import { PRODUCT_STATUS_LABEL } from '../lib/labels';
 import type { Product } from '../types';
@@ -35,20 +36,36 @@ function thumbnailOf(p: Product): string | undefined {
 
 export function ProductsPage() {
   const navigate = useNavigate();
+  const { data: categories } = useCategories();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  const [qInput, setQInput] = useState('');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<string>(ALL);
+  const [category, setCategory] = useState<string>(ALL);
   const [sort, setSort] = useState<DataTableSort>({
     field: 'createdAt',
     direction: 'DESC',
   });
 
+  // Debounce ô tìm kiếm để không gọi API mỗi phím gõ.
+  useEffect(() => {
+    const t = setTimeout(() => setQ(qInput.trim()), 350);
+    return () => clearTimeout(t);
+  }, [qInput]);
+
+  // Đổi từ khóa tìm kiếm (sau debounce) → về trang 1.
+  useEffect(() => {
+    setPage(1);
+  }, [q]);
+
   const query = useProducts({
     page,
     limit,
-    q: q.trim() || undefined,
+    q: q || undefined,
     status: status === ALL ? undefined : (status as ProductStatus),
+    // BE lọc theo slug nhóm sản phẩm (server-side).
+    category: category === ALL ? undefined : category,
     sort: `${sort.field}:${sort.direction}`,
   });
 
@@ -119,15 +136,32 @@ export function ProductsPage() {
         <div className="relative sm:max-w-xs sm:flex-1">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
             placeholder="Tìm theo tên sản phẩm…"
             className="pl-8"
           />
         </div>
+        <Select
+          value={category}
+          onValueChange={(v) => {
+            setCategory(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="sm:w-48">
+            <SelectValue placeholder="Nhóm sản phẩm" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Mọi nhóm sản phẩm</SelectItem>
+            {categories?.map((c) => (
+              <SelectItem key={c.id} value={c.slug}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select
           value={status}
           onValueChange={(v) => {

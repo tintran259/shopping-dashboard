@@ -1,2 +1,3 @@
-export { LocationsPage, useProvinces, useWards } from './pages/locations-page';
-export type { Province, Ward } from './pages/locations-page';
+export { LocationsPage } from './pages/locations-page';
+export { useProvinces, useWards, locationKeys } from './hooks/use-locations';
+export type { Province, Ward } from './types';

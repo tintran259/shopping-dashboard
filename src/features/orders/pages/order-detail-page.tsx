@@ -34,6 +34,7 @@ import { useOrder } from '../hooks/use-orders';
 import {
   FULFILLMENT_LABEL,
   FULFILLMENT_STARTED_STATUSES,
+  ORDER_CHANNEL_LABEL,
   PAYMENT_METHOD_LABEL,
   PREPAID_PAYMENT_METHODS,
   SHIPPED_OR_BEYOND_STATUSES,
@@ -221,6 +222,10 @@ function OrderDetailContent({ order }: { order: Order }) {
             <InfoRow
               label="Đặt lúc"
               value={formatDateTime(order.placedAt ?? order.createdAt)}
+            />
+            <InfoRow
+              label="Nguồn tạo"
+              value={ORDER_CHANNEL_LABEL[order.channel]}
             />
             <InfoRow
               label="Hình thức"

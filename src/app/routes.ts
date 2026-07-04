@@ -3,6 +3,7 @@ export const ROUTES = {
   login: '/login',
   dashboard: '/dashboard',
   orders: '/orders',
+  orderNew: '/orders/new',
   orderDetail: (id = ':id') => `/orders/${id}`,
   products: '/catalog/products',
   productNew: '/catalog/products/new',
@@ -13,6 +14,7 @@ export const ROUTES = {
   inventory: '/inventory/stock',
   vouchers: '/vouchers',
   customers: '/customers',
+  customerDetail: (id = ':id') => `/customers/${id}`,
   reviews: '/reviews',
   locations: '/locations',
 } as const;

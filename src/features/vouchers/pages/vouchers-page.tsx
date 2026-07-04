@@ -64,7 +64,7 @@ const vouchersApi = {
 
 const keys = { all: ['vouchers'] as const };
 
-export function useVouchers() {
+function useVouchers() {
   return useQuery({ queryKey: keys.all, queryFn: () => vouchersApi.list() });
 }
 
