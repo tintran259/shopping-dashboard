@@ -1,28 +1,10 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
-import { useState } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Copy, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { z } from 'zod';
-import { apiClient } from '@/lib/api-client';
-import { ApiError } from '@/lib/api-error';
-import { VoucherType, type BaseEntity } from '@/types';
+import { VoucherCustomerScope, VoucherType } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Form } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -30,132 +12,208 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { DataTable, type ColumnDef } from '@/components/shared/data-table';
-import { FormField } from '@/components/shared/form-field';
 import { PageHeader } from '@/components/shared/page-header';
-import { formatDate } from '@/lib/format';
+import { Pagination } from '@/components/shared/pagination';
+import { formatCurrency, formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import { ROUTES } from '@/app/routes';
+import { useDeleteVoucher } from '../hooks/use-voucher-mutations';
+import { useVouchers, useVoucherStats } from '../hooks/use-vouchers';
+import { VOUCHER_TYPE_LABEL } from '../lib/labels';
+import type { Voucher, VoucherState } from '../types';
 
-// ── Types ────────────────────────────────────────────────────────────
-export interface Voucher extends BaseEntity {
-  code: string;
-  type: VoucherType;
-  value: string;
-  minSubtotal?: string;
-  usageLimit?: number;
-  startsAt?: string;
-  endsAt?: string;
-  isActive: boolean;
-}
-
-interface VoucherInput {
-  code: string;
-  type: VoucherType;
-  value: string;
-  minSubtotal?: string;
-}
-
-// ── API ──────────────────────────────────────────────────────────────
-const vouchersApi = {
-  list: () => apiClient.get<Voucher[]>('/vouchers'),
-  create: (body: VoucherInput) => apiClient.post<Voucher>('/vouchers', body),
-  remove: (id: string) => apiClient.delete<void>(`/vouchers/${id}`),
+const STATE_META: Record<VoucherState, { label: string; variant: 'success' | 'info' | 'muted' | 'destructive' }> = {
+  active: { label: 'Đang hoạt động', variant: 'success' },
+  scheduled: { label: 'Đã lên lịch', variant: 'info' },
+  expired: { label: 'Hết hạn', variant: 'muted' },
+  disabled: { label: 'Đã tắt', variant: 'destructive' },
 };
 
-const keys = { all: ['vouchers'] as const };
-
-function useVouchers() {
-  return useQuery({ queryKey: keys.all, queryFn: () => vouchersApi.list() });
+function valueLabel(v: Voucher): string {
+  if (v.type === VoucherType.PERCENT) return `Giảm ${v.value}%`;
+  if (v.type === VoucherType.SHIPPING) return `Giảm ${formatCurrency(v.value)} phí ship`;
+  return `Giảm ${formatCurrency(v.value)}`;
 }
 
-function useCreateVoucher() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (b: VoucherInput) => vouchersApi.create(b),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.all });
-      toast.success('Đã tạo mã giảm giá');
-    },
-    onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Tạo thất bại'),
-  });
+/** Trạng thái hiển thị cho 1 dòng — chỉ dùng cho badge cột "Trạng thái"; bộ lọc
+ *  và số liệu thống kê đã tính phía server (xem `AdminVoucherQueryDto.state`). */
+function deriveState(v: Voucher): VoucherState {
+  if (!v.isActive) return 'disabled';
+  const now = Date.now();
+  if (v.startsAt && new Date(v.startsAt).getTime() > now) return 'scheduled';
+  if (v.endsAt && new Date(v.endsAt).getTime() < now) return 'expired';
+  return 'active';
 }
 
-function useDeleteVoucher() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => vouchersApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.all });
-      toast.success('Đã xóa mã giảm giá');
-    },
-    onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Xóa thất bại'),
-  });
-}
-
-// ── Page ─────────────────────────────────────────────────────────────
-const TYPE_LABEL: Record<VoucherType, string> = {
-  [VoucherType.PERCENT]: 'Phần trăm',
-  [VoucherType.FIXED]: 'Số tiền',
-  [VoucherType.SHIPPING]: 'Phí ship',
-};
-
-const schema = z.object({
-  code: z.string().trim().min(1, 'Nhập mã'),
-  type: z.nativeEnum(VoucherType),
-  value: z.string().trim().min(1, 'Nhập giá trị'),
-  minSubtotal: z.string().trim().optional(),
-});
-type FormValues = z.infer<typeof schema>;
+const ALL = '__all__';
 
 export function VouchersPage() {
-  const query = useVouchers();
-  const createVoucher = useCreateVoucher();
+  const navigate = useNavigate();
   const deleteVoucher = useDeleteVoucher();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [qInput, setQInput] = useState('');
+  const [q, setQ] = useState('');
+  const [stateFilter, setStateFilter] = useState<string>(ALL);
   const [toDelete, setToDelete] = useState<Voucher | null>(null);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { code: '', type: VoucherType.PERCENT, value: '', minSubtotal: '' },
+  // Debounce ô tìm kiếm để không gọi API mỗi phím gõ.
+  useEffect(() => {
+    const t = setTimeout(() => setQ(qInput.trim()), 350);
+    return () => clearTimeout(t);
+  }, [qInput]);
+
+  // Đổi bất kỳ bộ lọc nào → về trang 1.
+  useEffect(() => {
+    setPage(1);
+  }, [q, stateFilter]);
+
+  const query = useVouchers({
+    page,
+    limit,
+    q: q || undefined,
+    state: stateFilter === ALL ? undefined : (stateFilter as VoucherState),
   });
+  const statsQuery = useVoucherStats();
+  const stats = statsQuery.data;
+
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success(`Đã sao chép mã "${code}"`);
+    } catch {
+      toast.error('Không thể sao chép mã');
+    }
+  };
 
   const columns: ColumnDef<Voucher>[] = [
     {
       id: 'code',
       header: 'Mã',
-      cell: (v) => <span className="font-mono font-medium">{v.code}</span>,
+      cell: (v) => (
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono font-medium">{v.code}</span>
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Sao chép mã"
+            onClick={(e) => {
+              e.stopPropagation();
+              copyCode(v.code);
+            }}
+          >
+            <Copy className="size-3.5" />
+          </button>
+        </div>
+      ),
     },
-    { id: 'type', header: 'Loại', cell: (v) => TYPE_LABEL[v.type] },
-    { id: 'value', header: 'Giá trị', cell: (v) => v.value },
     {
-      id: 'endsAt',
-      header: 'Hết hạn',
-      cell: (v) => (v.endsAt ? formatDate(v.endsAt) : '—'),
+      id: 'value',
+      header: 'Ưu đãi',
+      cell: (v) => (
+        <div>
+          <p className="font-medium">{valueLabel(v)}</p>
+          <p className="text-xs text-muted-foreground">
+            {VOUCHER_TYPE_LABEL[v.type]}
+            {v.type === VoucherType.PERCENT && v.maxDiscount
+              ? ` · tối đa ${formatCurrency(v.maxDiscount)}`
+              : ''}
+          </p>
+        </div>
+      ),
     },
     {
-      id: 'isActive',
-      header: 'Trạng thái',
+      id: 'scope',
+      header: 'Phạm vi',
+      cell: (v) => {
+        const customerPart =
+          v.customerScope === VoucherCustomerScope.GUESTS
+            ? 'khách vãng lai'
+            : v.customerScope === VoucherCustomerScope.USERS
+              ? 'mọi tài khoản'
+              : v.customersCount
+                ? `${v.customersCount} khách`
+                : null;
+        const parts = [
+          v.productsCount ? `${v.productsCount} SP` : null,
+          v.branchesCount ? `${v.branchesCount} chi nhánh` : null,
+          customerPart,
+        ].filter(Boolean);
+        return (
+          <span className="text-sm text-muted-foreground">
+            {parts.length ? parts.join(' · ') : 'Toàn hệ thống'}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'usage',
+      header: 'Đã dùng',
+      cell: (v) => {
+        const pct = v.usageLimit ? Math.min(100, (v.usedCount / v.usageLimit) * 100) : 0;
+        return (
+          <div className="w-28 space-y-1">
+            <p className="text-xs tabular-nums">
+              {v.usedCount} / {v.usageLimit ?? '∞'}
+              {v.perCustomerLimit ? ` · ${v.perCustomerLimit}/khách` : ''}
+            </p>
+            {v.usageLimit != null && (
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn('h-full rounded-full', pct >= 100 ? 'bg-destructive' : 'bg-primary')}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'validity',
+      header: 'Hiệu lực',
+      className: 'whitespace-nowrap text-muted-foreground',
       cell: (v) =>
-        v.isActive ? (
-          <Badge variant="success">Kích hoạt</Badge>
-        ) : (
-          <Badge variant="muted">Tắt</Badge>
-        ),
+        !v.startsAt && !v.endsAt
+          ? 'Không giới hạn'
+          : `${v.startsAt ? formatDate(v.startsAt) : '—'} → ${v.endsAt ? formatDate(v.endsAt) : '—'}`,
+    },
+    {
+      id: 'state',
+      header: 'Trạng thái',
+      cell: (v) => {
+        const meta = STATE_META[deriveState(v)];
+        return <Badge variant={meta.variant}>{meta.label}</Badge>;
+      },
     },
     {
       id: 'actions',
       header: '',
       className: 'text-right',
       cell: (v) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-destructive"
-          onClick={() => setToDelete(v)}
-          aria-label="Xóa"
-        >
-          <Trash2 className="size-4" />
-        </Button>
+        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Sửa"
+            onClick={() => navigate(ROUTES.voucherEdit(v.id))}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-destructive"
+            aria-label="Xóa"
+            onClick={() => setToDelete(v)}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
       ),
     },
   ];
@@ -166,92 +224,78 @@ export function VouchersPage() {
         title="Mã giảm giá"
         description="Quản lý mã khuyến mãi và điều kiện áp dụng."
         actions={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="size-4" />
-                Thêm mã
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Thêm mã giảm giá</DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form
-                  className="space-y-4"
-                  onSubmit={form.handleSubmit((values) =>
-                    createVoucher.mutate(
-                      { ...values, minSubtotal: values.minSubtotal || undefined },
-                      {
-                        onSuccess: () => {
-                          setDialogOpen(false);
-                          form.reset();
-                        },
-                      },
-                    ),
-                  )}
-                >
-                  <FormField
-                    control={form.control}
-                    name="code"
-                    label="Mã"
-                    render={(f) => <Input {...f} placeholder="WELCOME15" />}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    label="Loại"
-                    render={(f) => (
-                      <Select value={f.value} onValueChange={f.onChange}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.values(VoucherType).map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {TYPE_LABEL[t]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="value"
-                    label="Giá trị"
-                    render={(f) => <Input {...f} placeholder="15" />}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="minSubtotal"
-                    label="Đơn tối thiểu (tùy chọn)"
-                    render={(f) => <Input {...f} placeholder="0" />}
-                  />
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    loading={createVoucher.isPending}
-                  >
-                    Tạo
-                  </Button>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => navigate(ROUTES.voucherNew)}>
+            <Plus className="size-4" />
+            Thêm mã
+          </Button>
         }
       />
 
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {(
+          [
+            ['total', 'Tổng số mã', stats?.total ?? 0, 'text-foreground'],
+            ['active', 'Đang hoạt động', stats?.active ?? 0, 'text-success'],
+            ['scheduled', 'Đã lên lịch', stats?.scheduled ?? 0, 'text-info'],
+            [
+              'expired',
+              'Hết hạn / đã tắt',
+              (stats?.expired ?? 0) + (stats?.disabled ?? 0),
+              'text-muted-foreground',
+            ],
+          ] as const
+        ).map(([key, label, value, cls]) => (
+          <Card key={key}>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">{label}</p>
+              <p className={cn('text-2xl font-semibold tabular-nums', cls)}>{value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <Input
+          value={qInput}
+          onChange={(e) => setQInput(e.target.value)}
+          placeholder="Tìm theo mã…"
+          className="lg:max-w-xs"
+        />
+        <Select value={stateFilter} onValueChange={setStateFilter}>
+          <SelectTrigger className="lg:w-48">
+            <SelectValue placeholder="Trạng thái" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Mọi trạng thái</SelectItem>
+            {(Object.keys(STATE_META) as VoucherState[]).map((s) => (
+              <SelectItem key={s} value={s}>
+                {STATE_META[s].label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <DataTable
         columns={columns}
-        data={query.data}
+        data={query.data?.data}
         rowKey={(v) => v.id}
         isLoading={query.isLoading}
         isError={query.isError}
         error={query.error}
         onRetry={() => query.refetch()}
+        onRowClick={(v) => navigate(ROUTES.voucherEdit(v.id))}
         emptyTitle="Chưa có mã giảm giá"
+        emptyDescription="Thử đổi bộ lọc hoặc tạo mã mới."
+      />
+
+      <Pagination
+        meta={query.data?.meta}
+        onPageChange={setPage}
+        onLimitChange={(l) => {
+          setLimit(l);
+          setPage(1);
+        }}
       />
 
       <ConfirmDialog

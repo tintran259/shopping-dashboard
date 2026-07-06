@@ -13,6 +13,8 @@ export const ROUTES = {
   branches: '/inventory/branches',
   inventory: '/inventory/stock',
   vouchers: '/vouchers',
+  voucherNew: '/vouchers/new',
+  voucherEdit: (id = ':id') => `/vouchers/${id}`,
   customers: '/customers',
   customerDetail: (id = ':id') => `/customers/${id}`,
   reviews: '/reviews',

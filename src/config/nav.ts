@@ -44,8 +44,18 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ShoppingCart,
         matchPrefixes: ['/orders'],
       },
-      { label: 'Mã giảm giá', to: ROUTES.vouchers, icon: Ticket },
-      { label: 'Khách hàng', to: ROUTES.customers, icon: Users },
+      {
+        label: 'Mã giảm giá',
+        to: ROUTES.vouchers,
+        icon: Ticket,
+        matchPrefixes: ['/vouchers'],
+      },
+      {
+        label: 'Khách hàng',
+        to: ROUTES.customers,
+        icon: Users,
+        matchPrefixes: ['/customers'],
+      },
     ],
   },
   {

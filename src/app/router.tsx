@@ -49,6 +49,12 @@ const InventoryPage = lazy(() =>
 const VouchersPage = lazy(() =>
   import('@/features/vouchers').then((m) => ({ default: m.VouchersPage })),
 );
+const VoucherCreatePage = lazy(() =>
+  import('@/features/vouchers').then((m) => ({ default: m.VoucherCreatePage })),
+);
+const VoucherEditPage = lazy(() =>
+  import('@/features/vouchers').then((m) => ({ default: m.VoucherEditPage })),
+);
 const CustomersPage = lazy(() =>
   import('@/features/customers').then((m) => ({ default: m.CustomersPage })),
 );
@@ -94,6 +100,8 @@ export const router = createBrowserRouter([
 
           // Others
           { path: ROUTES.vouchers, element: <VouchersPage /> },
+          { path: ROUTES.voucherNew, element: <VoucherCreatePage /> },
+          { path: ROUTES.voucherEdit(), element: <VoucherEditPage /> },
           { path: ROUTES.customers, element: <CustomersPage /> },
           { path: ROUTES.customerDetail(), element: <CustomerDetailPage /> },
           { path: ROUTES.reviews, element: <ReviewsPage /> },

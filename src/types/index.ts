@@ -94,6 +94,18 @@ export const VoucherType = {
 } as const;
 export type VoucherType = (typeof VoucherType)[keyof typeof VoucherType];
 
+/** Who a voucher's customer restriction applies to — `SPECIFIC` with an
+ *  empty picked-customers list means unrestricted (anyone, guest or
+ *  account); `GUESTS`/`USERS` ignore that list and gate purely on whether
+ *  the order has an account at all. */
+export const VoucherCustomerScope = {
+  SPECIFIC: 'specific',
+  GUESTS: 'guests',
+  USERS: 'users',
+} as const;
+export type VoucherCustomerScope =
+  (typeof VoucherCustomerScope)[keyof typeof VoucherCustomerScope];
+
 export const ReviewStatus = {
   PENDING: 'pending',
   PUBLISHED: 'published',

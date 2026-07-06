@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/table';
 import { FormField } from '@/components/shared/form-field';
 import { MoneyInput } from '@/components/shared/money-input';
-import { cn } from '@/lib/utils';
+import { Switch } from '@/components/shared/switch';
 import {
   emptyOption,
   generateVariants,
@@ -43,36 +43,6 @@ interface ProductOptionsAndVariantsProps {
   options: ProductOptionFormValue[];
   slug: string;
   basePrice: string;
-}
-
-/** Minimal on/off switch — the only place this app needs one, so kept local
- *  rather than a new shared ui primitive. */
-function Switch({
-  checked,
-  onCheckedChange,
-}: {
-  checked: boolean;
-  onCheckedChange: (value: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onCheckedChange(!checked)}
-      className={cn(
-        'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
-        checked ? 'bg-primary' : 'bg-input',
-      )}
-    >
-      <span
-        className={cn(
-          'inline-block size-4 translate-x-0.5 transform rounded-full bg-white shadow transition-transform',
-          checked && 'translate-x-4',
-        )}
-      />
-    </button>
-  );
 }
 
 /** Tag editor for one option's declared values (vd Trắng/Đen/Đỏ) — Enter or
