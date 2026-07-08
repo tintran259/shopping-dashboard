@@ -141,7 +141,8 @@ src/
 | ------- | ----------- | ----- |
 | Login | `POST /auth/login`, `GET /auth/me` | admin-only gate |
 | Products | `GET /admin/products`*, `GET /admin/products/:id`*, `POST /admin/products`*, `PATCH /admin/products/:id`*, `DELETE /admin/products/:id`* | raw entities; `GET /products*` stays public storefront |
-| Categories | `GET /categories`, `GET /categories/:id`, `POST`*, `PATCH /:id`*, `DELETE /:id`* | old path, per-method guard |
+| Categories | `GET /categories`, `GET /categories/:id`, `POST`*, `PATCH /:id`*, `PATCH /reorder`*, `DELETE /:id`* | old path, per-method guard; tree max 3 levels, cached, see domain rules |
+| Category attributes | `GET /categories/:id/attributes`, `POST`*, `PATCH /:id`*, `DELETE /:id`* | filter *templates* for a leaf category, not product values |
 | Brands | `GET /brands`, `GET /brands/:id`, `POST`*, `PATCH /:id`*, `DELETE /:id`* | old path, per-method guard |
 | Branches | `GET /branches`, `POST /branches`*, `PATCH /branches/:id`*, `DELETE /branches/:id`* | old path, per-method guard |
 | Inventory | `GET /branches/inventory/variant/:variantId`, `PUT /branches/inventory`* | stock per variant × branch; PUT upserts |
@@ -185,6 +186,59 @@ Confirm/extend the BE before building these; stub the UI otherwise:
   shipped, delivered, cancelled · `PaymentStatus` = pending, paid, failed, refunded ·
   `ProductStatus` = active, draft, preorder, out_of_stock, discontinued · `InventoryStatus`
   = in_stock, preorder, out_of_stock · `FulfillmentType` = delivery, pickup.
+
+### Categories: tree depth cap, leaf-only products, reordering
+
+- **3 levels max: root → child → grandchild.** A grandchild is always a leaf —
+  it can never have its own children. Enforced in `CategoriesService`
+  (`shopping-api`, `assertValidParent`), not the schema; the BE also rejects
+  re-parenting a category under its own descendant (cycle). The FE mirrors
+  the same depth/cycle checks in `lib/category-tree.ts` (`categoryDepth`,
+  `isSelfOrDescendant`) purely to grey out invalid parent choices in the
+  form — the BE check is the real guard.
+- **Products attach only to leaf categories** — whichever node in a branch
+  has no children, root included if that branch was never split into
+  sub-groups. The product form's category picker only ever offers leaves,
+  each labeled with its full breadcrumb path (`categoryPath`) since a bare
+  leaf name loses the hierarchy context.
+- **`productsCount` on `GET /categories` is direct-only** (0 for non-leaf
+  nodes, since products never attach there). The category list page rolls
+  this up across a subtree client-side (`productsCountRollup`) — the BE
+  intentionally doesn't run a recursive query for this.
+- **Reordering is one request for the whole drag-and-drop batch:**
+  `PATCH /categories/reorder` with `{ items: [{ id, sortOrder }] }`. Never
+  fire one `PATCH /categories/:id` per moved row — that was the original
+  (fixed) implementation and it spammed both the network tab and the
+  success-toast.
+- **Clearing an existing parent (move a category back to root) needs an
+  explicit `parentId: null`, not `undefined`.** `JSON.stringify` drops
+  `undefined` keys entirely, so the BE never receives the field and leaves
+  the old parent untouched — this was a real bug caught by
+  `categories.service.spec.ts`'s "leaves the parent untouched when omitted"
+  vs "clears parent when null" pair of tests.
+- **UI is an inline accordion, not drill-down navigation.** Clicking an
+  expandable category (depth < 2) reveals its children indented directly
+  below it, with an "add subcategory" row after them — not a breadcrumb/
+  replace-the-list navigation. Add/edit is a centered modal (`Dialog`), not
+  a slide-over panel.
+- **SEO** (`seo.metaTitle`/`seo.metaDescription`) is a loose jsonb bag on
+  `Category`, same pattern as `products.seo` — set it via an explicit
+  `seo: null` to clear (same `undefined`-gets-dropped gotcha as `parentId`
+  above), never `seo: undefined`.
+- **Category attribute templates are definitions only, not values.**
+  `CategoryAttribute` (`category_attributes` table, `/categories/:id/attributes`)
+  lets an admin declare a leaf category's expected filters (e.g. "Size" as a
+  SELECT with options S/M/L) — it does **not** feed the product form or the
+  storefront yet, and must not be confused with `ProductAttribute` (an
+  unrelated, pre-existing free-form key/value already filled in per product).
+  Only leaf categories (no children) can have templates — the kebab menu
+  hides "Thuộc tính lọc" for anything with subcategories.
+- **`GET /categories` is cached in-memory** (`CategoriesService`, single
+  process, invalidated synchronously on every write) since the full list is
+  read far more often than it's written and pays for a correlated
+  `productsCount` subquery per row. Don't add a second cache layer on top of
+  this without removing it first — a multi-instance deployment would need a
+  shared cache (Redis) instead, not both.
 
 ## UI / UX Conventions
 

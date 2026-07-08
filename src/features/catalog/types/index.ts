@@ -11,6 +11,11 @@ export interface Brand extends BaseEntity {
   logoUrl?: string;
 }
 
+export interface CategorySeo {
+  metaTitle?: string;
+  metaDescription?: string;
+}
+
 export interface Category extends BaseEntity {
   name: string;
   slug: string;
@@ -19,6 +24,27 @@ export interface Category extends BaseEntity {
   sortOrder: number;
   isActive: boolean;
   parentId?: string;
+  seo?: CategorySeo;
+  /** Products directly tagged to this exact category — 0 for non-leaf nodes
+   *  (products only ever attach to leaves). The list page rolls this up
+   *  across a subtree client-side for a non-leaf category's displayed total. */
+  productsCount?: number;
+}
+
+/** Kept in sync with the BE's `CategoryAttributeType` enum. */
+export type CategoryAttributeType = 'text' | 'number' | 'select' | 'multiselect' | 'boolean';
+
+/** A filter *definition* for a (leaf) category — e.g. "Size" is a SELECT with
+ *  options S/M/L. Template only, no product value attached — see
+ *  `ProductAttribute` (unrelated, free-form key/value already filled in per
+ *  product) for that. */
+export interface CategoryAttribute extends BaseEntity {
+  categoryId: string;
+  name: string;
+  type: CategoryAttributeType;
+  options?: string[];
+  isRequired: boolean;
+  sortOrder: number;
 }
 
 // ── Raw entity shapes (returned by /admin/products) ─────────────────

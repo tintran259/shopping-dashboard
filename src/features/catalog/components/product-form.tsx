@@ -21,6 +21,7 @@ import { FormField } from '@/components/shared/form-field';
 import { MoneyInput } from '@/components/shared/money-input';
 import { ProductStatus } from '@/types';
 import { cn } from '@/lib/utils';
+import { categoryPath, leafCategories } from '../lib/category-tree';
 import { useBrands, useCategories } from '../hooks/use-catalog-refs';
 import {
   LOCKED_INVENTORY_STATUSES,
@@ -118,6 +119,16 @@ export function ProductForm({ productId, defaultValues, onSubmit }: ProductFormP
     else set.add(id);
     form.setValue('categoryIds', [...set], { shouldDirty: true });
   };
+
+  // Sản phẩm chỉ gắn vào danh mục lá (không có danh mục con) — giữ cây gọn
+  // cho việc lọc/thống kê. Vẫn hiển thị (không cho bỏ chọn ngoài) một danh mục
+  // đã gắn từ trước nếu sau này nó không còn là lá nữa, để không âm thầm mất
+  // dữ liệu đã chọn.
+  const byId = new Map((categories ?? []).map((c) => [c.id, c]));
+  const leafIds = new Set(leafCategories(categories ?? []).map((c) => c.id));
+  const pickerCategories = (categories ?? []).filter(
+    (c) => leafIds.has(c.id) || selectedCategories.includes(c.id),
+  );
 
   return (
     <Form {...form}>
@@ -358,8 +369,8 @@ export function ProductForm({ productId, defaultValues, onSubmit }: ProductFormP
                 <CardTitle>Nhóm sản phẩm</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
-                {categories?.length ? (
-                  categories.map((c) => {
+                {pickerCategories.length ? (
+                  pickerCategories.map((c) => {
                     const active = selectedCategories.includes(c.id);
                     return (
                       <button
@@ -373,7 +384,7 @@ export function ProductForm({ productId, defaultValues, onSubmit }: ProductFormP
                             : 'text-muted-foreground hover:bg-accent',
                         )}
                       >
-                        {c.name}
+                        {categoryPath(c.id, byId)}
                       </button>
                     );
                   })

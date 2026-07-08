@@ -68,6 +68,33 @@ export function useCreateCategory() {
   });
 }
 
+export function useUpdateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<CategoryInput> }) =>
+      categoriesApi.update(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: categoryKeys.all });
+      toast.success('Đã cập nhật nhóm sản phẩm');
+    },
+    onError: toastError('Cập nhật nhóm sản phẩm thất bại'),
+  });
+}
+
+/** Drag-and-drop reorder: one request for the whole batch, no success toast
+ *  (too frequent/ambient an action to interrupt with one) — errors still
+ *  surface since a silently-failed reorder would look like data loss. */
+export function useReorderCategories() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (items: { id: string; sortOrder: number }[]) => categoriesApi.reorder(items),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: categoryKeys.all });
+    },
+    onError: toastError('Sắp xếp nhóm sản phẩm thất bại'),
+  });
+}
+
 export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
