@@ -43,6 +43,7 @@ export const voucherFormSchema = z
     branches: z.array(z.custom<VoucherBranchRef>()),
     customerScope: z.nativeEnum(VoucherCustomerScope),
     customers: z.array(z.custom<VoucherCustomerRef>()),
+    shippingMethods: z.array(z.string()),
   })
   .refine((v) => !v.startsAt || !v.endsAt || v.startsAt <= v.endsAt, {
     message: 'Ngày kết thúc phải sau ngày bắt đầu',
@@ -67,6 +68,7 @@ export function emptyVoucherForm(): VoucherFormValues {
     branches: [],
     customerScope: VoucherCustomerScope.SPECIFIC,
     customers: [],
+    shippingMethods: [],
   };
 }
 
@@ -74,10 +76,14 @@ export function voucherToForm(v: Voucher): VoucherFormValues {
   return {
     code: v.code,
     type: v.type,
-    // BE always returns money/percent as a decimal string ("20.00") — the %
-    // field is a plain Input (not MoneyInput), so strip the trailing .00
-    // for display; fixed/shipping still go through MoneyInput unaffected.
-    value: v.type === VoucherType.PERCENT ? String(Number(v.value)) : v.value,
+    // BE returns money/percent as a decimal string ("20.00"). Percent + shipping
+    // are normalized to a plain number ("0"/"20") so the % Input and the
+    // shipping full-free sentinel (value === '0') compare cleanly; fixed keeps
+    // its raw decimal for MoneyInput.
+    value:
+      v.type === VoucherType.PERCENT || v.type === VoucherType.SHIPPING
+        ? String(Number(v.value))
+        : v.value,
     minSubtotal: v.minSubtotal && Number(v.minSubtotal) > 0 ? v.minSubtotal : '',
     maxDiscount: v.maxDiscount ?? '',
     usageLimit: v.usageLimit != null ? String(v.usageLimit) : '',
@@ -89,6 +95,7 @@ export function voucherToForm(v: Voucher): VoucherFormValues {
     branches: v.branches ?? [],
     customerScope: v.customerScope,
     customers: v.customers ?? [],
+    shippingMethods: v.shippingMethods ?? [],
   };
 }
 
@@ -113,6 +120,9 @@ export function formToCreatePayload(values: VoucherFormValues): VoucherInput {
     // admin switches to 'guests'/'users' (see VoucherForm), so this is
     // already [] in those modes and doesn't need a re-check here.
     customerIds: values.customers.map((c) => c.id),
+    // Only meaningful for SHIPPING; the form keeps it [] for other types.
+    shippingMethods:
+      values.type === VoucherType.SHIPPING ? values.shippingMethods : [],
   };
 }
 

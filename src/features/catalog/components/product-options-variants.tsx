@@ -225,20 +225,31 @@ export function ProductOptionsAndVariants({
       </div>
 
       {!hasVariants ? (
-        <FormField
-          control={control}
-          name="singleSku"
-          label="Mã SKU"
-          description="Tự sinh từ slug sản phẩm — không sửa tay được, để đảm bảo không trùng SKU."
-          render={(f) => (
-            <Input
-              {...f}
-              value={f.value ?? ''}
-              disabled
-              placeholder="Tự sinh sau khi nhập tên sản phẩm…"
-            />
-          )}
-        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={control}
+            name="singleSku"
+            label="Mã SKU"
+            description="Tự sinh từ slug sản phẩm — không sửa tay được, để đảm bảo không trùng SKU."
+            render={(f) => (
+              <Input
+                {...f}
+                value={f.value ?? ''}
+                disabled
+                placeholder="Tự sinh sau khi nhập tên sản phẩm…"
+              />
+            )}
+          />
+          <FormField
+            control={control}
+            name="singleWeightGram"
+            label="Cân nặng (gram)"
+            description="Dùng để tính phí ship qua API đơn vị vận chuyển (vd GHN)."
+            render={(f) => (
+              <Input {...f} value={f.value ?? ''} inputMode="numeric" placeholder="200" />
+            )}
+          />
+        </div>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -376,6 +387,7 @@ export function ProductOptionsAndVariants({
                       <TableHead>SKU</TableHead>
                       <TableHead className="text-right">Giá (đ)</TableHead>
                       <TableHead className="text-right">Giá gạch (đ)</TableHead>
+                      <TableHead className="text-right">Cân nặng (g)</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -439,6 +451,21 @@ export function ProductOptionsAndVariants({
                                 value={f.value ?? ''}
                                 placeholder="Không bắt buộc"
                                 className="h-8"
+                              />
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormField
+                            control={control}
+                            name={`variants.${index}.weightGram`}
+                            render={(f) => (
+                              <Input
+                                {...f}
+                                value={f.value ?? ''}
+                                inputMode="numeric"
+                                placeholder="200"
+                                className="h-8 text-right"
                               />
                             )}
                           />

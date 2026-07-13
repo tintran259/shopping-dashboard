@@ -55,6 +55,9 @@ export interface Voucher extends BaseEntity {
    *  account at all — see the "Khách hàng áp dụng" section of the form. */
   customerScope: VoucherCustomerScope;
   customers?: VoucherCustomerRef[];
+  /** Only for `shipping` vouchers: which home-delivery methods it applies to
+   *  (standard/express). Empty = every method. */
+  shippingMethods?: string[];
   /** Present on the paginated list response in place of the full arrays above
    *  (the list only ever shows "N sản phẩm/chi nhánh/khách", never the
    *  members) — the edit form's `GET /vouchers/:id` still returns full arrays. */
@@ -78,6 +81,7 @@ export interface VoucherInput {
   branchIds?: string[];
   customerScope?: VoucherCustomerScope;
   customerIds?: string[];
+  shippingMethods?: string[];
 }
 
 export type UpdateVoucherInput = Partial<VoucherInput>;

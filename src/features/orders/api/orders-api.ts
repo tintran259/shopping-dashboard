@@ -2,10 +2,13 @@ import { apiClient } from '@/lib/api-client';
 import type { OrderStatus, PaginatedResult } from '@/types';
 import type {
   AdminOrderListParams,
+  CreateGhtkShipmentInput,
   CreateOrderInput,
   Order,
   OrderSummary,
   OrderSummaryParams,
+  Shipment,
+  UpsertShipmentInput,
   VoucherValidation,
 } from '../types';
 
@@ -43,4 +46,38 @@ export const ordersApi = {
     apiClient.post<Order>(`/admin/orders/${id}/confirm-payment`),
 
   cancel: (id: string) => apiClient.post<Order>(`/admin/orders/${id}/cancel`),
+
+  /** Null until an admin fills it in — supplementary tracking info,
+   *  independent of the order's own fulfilment status. */
+  getShipment: (id: string) =>
+    apiClient.get<Shipment | null>(`/admin/orders/${id}/shipment`),
+
+  upsertShipment: (id: string, body: UpsertShipmentInput) =>
+    apiClient.put<Shipment>(`/admin/orders/${id}/shipment`, body),
+
+  /** Explicitly create a real GHTK shipping order — admin supplies the
+   *  delivery district (see `CreateGhtkShipmentInput`). */
+  createGhtkShipment: (id: string, body: CreateGhtkShipmentInput) =>
+    apiClient.post<Shipment>(`/admin/orders/${id}/shipment/ghtk`, body),
+
+  /** Testing helper — simulates the carrier's own webhook (GHN/GHTK can't
+   *  reach localhost), so the status-sync flow can be exercised without a
+   *  real account. Only meaningful while the shipment is in mock mode. */
+  simulateCarrierWebhook: (id: string, carrierStatus: string) =>
+    apiClient.post<Shipment>(`/admin/orders/${id}/shipment/mock-webhook`, {
+      carrierStatus,
+    }),
+
+  /** Reset a failed shipment (returned/problem/pickup-failed) back to blank
+   *  so the admin can choose a carrier and create a fresh shipment. */
+  resetShipment: (id: string) =>
+    apiClient.post<Shipment>(`/admin/orders/${id}/shipment/reset`),
+
+  /** Returns printable GHTK label HTML. Mock mode: BE generates a label from
+   *  order data (no real token needed). Real mode: proxies GHTK's label API. */
+  getShipmentLabel: (id: string) =>
+    apiClient.get<string>(`/admin/orders/${id}/shipment/label`, {
+      responseType: 'text',
+      headers: { Accept: 'text/html' },
+    }),
 };

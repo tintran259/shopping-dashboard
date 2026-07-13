@@ -34,6 +34,13 @@ const productOptionSchema = z.object({
  *  variant's value for that dimension. Translated to `{ optionName: value }`
  *  only at submit time in {@link formToPayload}, which is the shape the BE
  *  expects. */
+const weightGramString = z
+  .string()
+  .trim()
+  .regex(/^\d+$/, 'Cân nặng phải là số nguyên (gram)')
+  .or(z.literal(''))
+  .optional();
+
 const flatVariantSchema = z.object({
   /** Existing variant id (edit flow) — undefined for a variant not yet saved. */
   id: z.string().optional(),
@@ -41,6 +48,9 @@ const flatVariantSchema = z.object({
   price: decimalString,
   compareAtPrice: optionalDecimal,
   imageUrl: z.string().optional(),
+  /** Gram — dùng để tính tổng cân nặng đơn hàng cho API đơn vị vận chuyển
+   *  (vd GHN). Bỏ trống = dùng cân nặng mặc định tạm thời phía BE. */
+  weightGram: weightGramString,
   optionValues: z.record(z.string(), z.string()),
 });
 
@@ -66,6 +76,7 @@ export const productFormSchema = z
     /** Sản phẩm chỉ 1 loại (không tuỳ chọn) → dùng đúng 1 SKU này thay vì bảng biến thể. */
     hasVariants: z.boolean(),
     singleSku: z.string().trim().optional(),
+    singleWeightGram: weightGramString,
     options: z.array(productOptionSchema),
     variants: z.array(flatVariantSchema),
   })
@@ -197,6 +208,7 @@ export function generateVariants(
       price: basePrice || '',
       compareAtPrice: '',
       imageUrl: '',
+      weightGram: '',
       optionValues: combo,
     };
   });
@@ -231,6 +243,7 @@ export function emptyProductForm(): ProductFormValues {
     gallery: [],
     hasVariants: false,
     singleSku: '',
+    singleWeightGram: '',
     // Trống — chỉ khởi tạo 1 nhóm tùy chọn rỗng khi admin thật sự bật công tắc
     // "có nhiều tùy chọn" (xem ProductOptionsAndVariants); để sẵn 1 placeholder
     // ở đây sẽ luôn fail validation của chính nó dù công tắc đang tắt và ẩn.
@@ -271,6 +284,7 @@ export function productToForm(p: Product): ProductFormValues {
       price: v.price,
       compareAtPrice: v.compareAtPrice ?? '',
       imageUrl: v.imageUrl ?? '',
+      weightGram: v.weightGram != null ? String(v.weightGram) : '',
       optionValues,
     };
   });
@@ -298,6 +312,7 @@ export function productToForm(p: Product): ProductFormValues {
       .map((img) => img.url),
     hasVariants,
     singleSku: hasVariants ? '' : (variants[0]?.sku ?? ''),
+    singleWeightGram: hasVariants ? '' : (variants[0]?.weightGram ?? ''),
     options,
     // Luôn giữ `variants` kể cả khi !hasVariants — đây là chỗ duy nhất mang
     // theo `id` của biến thể đơn (singleSku), formToPayload() đọc lại id đó
@@ -333,6 +348,7 @@ export function formToPayload(values: ProductFormValues): CreateProductInput {
         price: v.price.trim(),
         ...(v.compareAtPrice ? { compareAtPrice: v.compareAtPrice.trim() } : {}),
         ...(v.imageUrl ? { imageUrl: v.imageUrl.trim() } : {}),
+        ...(v.weightGram ? { weightGram: Number(v.weightGram) } : {}),
         optionValues: Object.fromEntries(
           Object.entries(v.optionValues).map(([key, val]) => [
             nameByKey.get(key) ?? key,
@@ -349,6 +365,9 @@ export function formToPayload(values: ProductFormValues): CreateProductInput {
             ? { compareAtPrice: values.compareAtPrice.trim() }
             : {}),
           ...(values.thumbnail ? { imageUrl: values.thumbnail.trim() } : {}),
+          ...(values.singleWeightGram
+            ? { weightGram: Number(values.singleWeightGram) }
+            : {}),
         },
       ];
 

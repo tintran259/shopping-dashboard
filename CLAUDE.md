@@ -144,9 +144,10 @@ src/
 | Categories | `GET /categories`, `GET /categories/:id`, `POST`*, `PATCH /:id`*, `PATCH /reorder`*, `DELETE /:id`* | old path, per-method guard; tree max 3 levels, cached, see domain rules |
 | Category attributes | `GET /categories/:id/attributes`, `POST`*, `PATCH /:id`*, `DELETE /:id`* | filter *templates* for a leaf category, not product values |
 | Brands | `GET /brands`, `GET /brands/:id`, `POST`*, `PATCH /:id`*, `DELETE /:id`* | old path, per-method guard |
-| Branches | `GET /branches`, `POST /branches`*, `PATCH /branches/:id`*, `DELETE /branches/:id`* | old path, per-method guard |
+| Branches | `GET /branches`, `POST /branches`*, `PATCH /branches/:id`*, `DELETE /branches/:id`* | old path, per-method guard; `ghnShopId` = which GHN shop this branch ships from; `ghtkPickupDistrict`/`ghtkPickupWard` = GHTK pickup address |
 | Inventory | `GET /branches/inventory/variant/:variantId`, `PUT /branches/inventory`* | stock per variant × branch; PUT upserts |
-| Orders | `GET /admin/orders`* (filter/search/sort/paginate), `GET /admin/orders/:id`*, `PATCH /admin/orders/:id/status`*, `POST /admin/orders/:id/confirm-payment`*, `POST /admin/orders/:id/cancel`* | class-level admin guard, no ownership check; see order/stock rules |
+| Orders | `GET /admin/orders`* (filter/search/sort/paginate), `GET /admin/orders/:id`*, `PATCH /admin/orders/:id/status`*, `POST /admin/orders/:id/confirm-payment`*, `POST /admin/orders/:id/cancel`*, `GET`/`PUT /admin/orders/:id/shipment`*, `POST /admin/orders/:id/shipment/ghn`*, `POST /admin/orders/:id/shipment/ghtk`*, `POST /admin/orders/:id/shipment/mock-webhook`* | class-level admin guard, no ownership check; `shipment/ghn`\|`ghtk` explicitly create a real carrier shipping order (admin-triggered); `mock-webhook` simulates a carrier webhook for local testing (see order/stock rules) |
+| GHN/GHTK webhooks | `POST /webhooks/ghn`, `POST /webhooks/ghtk` | public, called by the carrier itself — not admin routes |
 | Vouchers | `GET /vouchers`*, `POST`*, `PATCH /:id`*, `DELETE /:id`* | `GET /vouchers/validate` is public |
 | Locations | `GET /locations/provinces`, `GET /locations/provinces/:code/wards`, `POST /locations/sync`* | address data |
 | Search | `GET /search` | product lookup for pickers |
@@ -186,6 +187,112 @@ Confirm/extend the BE before building these; stub the UI otherwise:
   shipped, delivered, cancelled · `PaymentStatus` = pending, paid, failed, refunded ·
   `ProductStatus` = active, draft, preorder, out_of_stock, discontinued · `InventoryStatus`
   = in_stock, preorder, out_of_stock · `FulfillmentType` = delivery, pickup.
+
+### Shipment tracking (carrier/tracking no) — supplementary, not a status gate
+
+- `GET`/`PUT /admin/orders/:id/shipment` (`ShipmentsService`, `shopping-api`) is independent
+  of `Order.status` — filling in a carrier/tracking number never changes, and is never
+  required by, the order's own pending→…→delivered flow. It's purely informational (which
+  courier, tracking no, fee), upserted as one row per order.
+  `ShipmentStatus` = pending, shipped, delivered is its **own** separate status, auto-stamping
+  `shippedAt`/`deliveredAt` the first time it enters that value (not overwritten after).
+- `carrier` is free text on the BE by design (not an enum) — the FE offers a preset dropdown
+  (Tự giao + common VN couriers: GHN, GHTK, Viettel Post, VNPost, J&T Express, Ninja Van, BEST
+  Express, Grab Express, AhaMove) plus "Khác" for anything else, so a new courier never needs
+  a BE code change. Manual entry always works for any of these; **GHN and GHTK specifically
+  also have real API integrations** — see below.
+
+### Carrier API integrations (GHN, GHTK) — explicit create, webhook status sync
+
+- **Creating a real shipping order is an explicit admin action, not automatic.** `POST
+  /admin/orders/:id/shipment/ghn` (`GhnService.createShippingOrder`) and `POST
+  /admin/orders/:id/shipment/ghtk` (`GhtkService.createShippingOrder`, `shopping-api`) each
+  call that carrier's real API and throw a real error on failure (surfaced verbatim to the
+  admin) — the FE only shows these actions once the order has reached `PROCESSING`. This used
+  to auto-fire GHN silently on every transition to `PROCESSING`, but that assumed every
+  delivery order ships via GHN; once GHTK became a second real option, the admin has to pick
+  which carrier to actually call instead of the BE guessing — don't reintroduce an implicit
+  auto-fire without re-solving that conflict.
+- **The FE shows a confirmation modal before calling either endpoint**
+  (`CreateShipmentDialog`, `shipment-card.tsx`) — since this is a real 3rd-party API call, not
+  a local record, the admin sees exactly what will be sent first: sender (branch name/phone/
+  address/pickup ward-district for GHTK), receiver (recipient name/phone/full address), package
+  (item list, declared value, COD amount vs. "already paid"), plus the one carrier-specific
+  input (GHTK's delivery district; GHN's optional shipper note). Don't shrink this back down to
+  a bare button — the whole point is showing the real payload before it goes out.
+- **GHN also accepts an optional shipper note** (`CreateGhnShipmentDto.note`, GHN's own `note`
+  field) — the only thing GHN's create form asks the admin for, since everything else is
+  derived automatically (address resolver, branch shop id, item weights/prices/SKUs).
+- **Both throw `BadRequestException`/`BadGatewayException` on failure** (missing token, branch
+  not configured, carrier API down) — unlike a webhook, an explicit click has an admin waiting
+  for the result, so don't wrap these in try/catch-and-log; let errors propagate to the
+  controller.
+- **Each carrier's webhook status vocabulary is far richer than our 3-value `ShipmentStatus`**
+  — `Shipment.carrierStatusRaw` always records the carrier's exact status string/id verbatim;
+  only some values map onto our coarse enum (`GHN_STATUS_MAP`/`GHTK_STATUS_MAP` in
+  `carrier-status-maps.ts`, passed into `ShipmentsService.handleCarrierUpdate`) so a parcel is
+  never silently marked "delivered" when the truth is more nuanced (a failed delivery attempt,
+  a return in progress, etc).
+- **Weight comes from `ProductVariant.weightGram`** (admin-entered, per variant — or
+  `singleWeightGram` for a no-variant product), summed across order items with a
+  `DEFAULT_ITEM_WEIGHT_GRAM` (200g) fallback for anything not yet filled in, so an order can
+  still ship rather than blocking on missing data. GHTK wants kilograms, GHN wants grams —
+  each service does its own conversion.
+- **GHN's request/response shapes are transcribed straight from GHN's own "Create Order" docs**
+  (`ghn-client.ts`, fetched from api.ghn.vn — not guessed), not just the minimal fields: also
+  sends `from_name/from_phone/from_address` (sender), `length/width/height` (package dims —
+  no per-product dimension data exists anywhere in this system, so a fixed small-parcel
+  default is used, same fallback spirit as the weight default), `insurance_value` (declared
+  value), and per-item `code`/`price` (SKU/unit price). The response type mirrors GHN's real
+  schema too (`sort_code`, `trans_type`, `fee` breakdown, etc), not just `order_code`/`total_fee`.
+- **GHN**: address resolution is a real architecture bridge, not a simplification you can
+  remove — this codebase models Vietnam's 2025 2-tier administrative reform (province → ward,
+  no district — see `locations` module), while GHN's own API still expects a `district_id`.
+  `GhnAddressResolver` brute-force-searches every district in the matched province for a
+  ward-name match (cached per province after the first resolution) — there is no district data
+  to look it up directly. Ships from whichever GHN "shop id" the branch is configured with
+  (`Branch.ghnShopId`) — the pickup address itself lives in GHN's own merchant dashboard
+  against that shop id, not in our system. Falls back to `GHN_DEFAULT_SHOP_ID` env var if a
+  branch has none.
+- **GHTK**: its address fields are plain Vietnamese admin-division **names** (not codes), and
+  its pickup fields (`pick_name/address/tel`) come straight from the branch — but it still
+  needs a **district** name for both pickup and delivery, which our `locations` module can't
+  provide at all (same 2025-reform gap as GHN, but GHTK has no numeric-ID resolver to bridge
+  it). The pickup side is a per-branch constant, so it's configured once on the branch
+  (`Branch.ghtkPickupDistrict`/`ghtkPickupWard`, editable in the branch form); the delivery
+  side genuinely varies per order and can't be derived, so it's the one field the admin types
+  on the "Tạo vận đơn GHTK" form (`CreateGhtkShipmentDto.district`). Don't try to auto-fill it
+  from GHN's master data or any other guess — get it from the admin.
+- **Webhooks** (`POST /webhooks/ghn`, `POST /webhooks/ghtk`, both `@Public()`) accept a raw
+  object rather than a whitelisted DTO on purpose: each carrier sends many more fields than we
+  read, and the global `ValidationPipe`'s `forbidNonWhitelisted: true` would otherwise reject
+  the whole payload over fields we don't model. GHTK's docs state it only treats HTTP 200 as
+  success (anything else triggers a retry) — hence the explicit `@HttpCode(200)` on that one.
+- ⚠️ **Re-verify against a real account before relying on this in production.** GHN's client
+  (`ghn-client.ts`) was built without live sandbox access — best-effort from GHN's documented
+  v2 API. GHTK's client (`ghtk-client.ts`) was built from GHTK's public docs (a more solid
+  starting point), but is still unverified against a real token/account — docs can drift from
+  the live API.
+- **Mock mode — swap in the token, nothing else changes.** With `GHN_TOKEN`/`GHTK_TOKEN` unset,
+  `GhnClient`/`GhtkClient` return a canned fake response (`order_code`/`label` prefixed
+  `MOCK-GHN-`/`MOCK-GHTK-`) instead of calling the real API — logged loudly every time
+  (`[MOCK] ... chưa cấu hình`) so it's never mistaken for a real success in a log stream.
+  `GhnAddressResolver` checks `GhnClient.isMockMode` and skips the real province/district/ward
+  search entirely (returns a fixed fake `{ districtId: 0, wardCode: 'MOCK_WARD' }`) since those
+  fake IDs are only ever fed back into the (also mocked) create-order call. The instant a real
+  token is set, both classes call the real API automatically — **no other code needs to
+  change** to go live; this is the only thing gating mock vs. real. Don't add a separate
+  `GHN_MOCK`/`GHTK_MOCK` flag — the empty token *is* the flag, by design.
+- **Simulating the carrier's webhook** (`POST /admin/orders/:id/shipment/mock-webhook`,
+  `ShipmentsService.simulateCarrierWebhook`) exists because GHN/GHTK can't reach `localhost` to
+  call the real webhook during local dev — it reuses `handleCarrierUpdate` directly (the exact
+  same code path a real webhook hits), keyed off `Shipment.carrier` to pick the right status
+  map from `CARRIER_STATUS_MAPS`. Throws if the shipment has no `trackingNo` yet, or if
+  `carrier` isn't one of the API-integrated ones (e.g. a manual courier — nothing to simulate).
+  The FE only shows the trigger (`MockWebhookTrigger` in `shipment-card.tsx`) when
+  `trackingNo` starts with `MOCK-`, so it naturally disappears once real shipments start
+  flowing in — this is a testing convenience, not a general "replay a missed webhook" tool
+  (use the manual-entry fallback for that).
 
 ### Categories: tree depth cap, leaf-only products, reordering
 

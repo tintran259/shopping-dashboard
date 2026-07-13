@@ -73,6 +73,8 @@ export interface ProductVariant extends BaseEntity {
   compareAtPrice?: string;
   imageUrl?: string;
   isActive: boolean;
+  /** Used to compute total shipment weight for carrier APIs (e.g. GHN). */
+  weightGram?: number;
   /** The option values that define this variant (ids map into product.options). */
   optionValues?: ProductOptionValue[];
 }
@@ -115,6 +117,7 @@ export interface VariantInput {
   price: string;
   compareAtPrice?: string;
   imageUrl?: string;
+  weightGram?: number;
   optionValues?: Record<string, string>;
 }
 

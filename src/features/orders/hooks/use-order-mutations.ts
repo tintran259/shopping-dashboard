@@ -3,7 +3,12 @@ import { toast } from 'sonner';
 import type { OrderStatus } from '@/types';
 import { ApiError } from '@/lib/api-error';
 import { ordersApi } from '../api/orders-api';
-import type { CreateOrderInput, Order } from '../types';
+import type {
+  CreateGhtkShipmentInput,
+  CreateOrderInput,
+  Order,
+  UpsertShipmentInput,
+} from '../types';
 import { orderKeys } from './use-orders';
 
 /** Surface the BE message verbatim (business rules require exact wording). */
@@ -84,6 +89,85 @@ export function useCreateOrder() {
       toast.success('Đã tạo đơn hàng');
     },
     onError: toastError('Tạo đơn hàng thất bại'),
+  });
+}
+
+/** Create or update the order's shipment tracking info (carrier/tracking
+ *  no/fee/status) — supplementary, independent of `Order.status`. */
+export function useUpsertShipment(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpsertShipmentInput) => ordersApi.upsertShipment(orderId, body),
+    onSuccess: (updated) => {
+      qc.setQueryData(orderKeys.shipment(orderId), updated);
+      toast.success('Đã lưu thông tin vận chuyển');
+    },
+    onError: toastError('Lưu thông tin vận chuyển thất bại'),
+  });
+}
+
+/** Explicitly create a real GHTK shipping order for this order — admin
+ *  supplies the delivery district (the one field we can't derive). */
+export function useCreateGhtkShipment(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateGhtkShipmentInput) =>
+      ordersApi.createGhtkShipment(orderId, body),
+    onSuccess: (shipment) => {
+      qc.setQueryData(orderKeys.shipment(orderId), shipment);
+      toast.success('Đã tạo vận đơn GHTK');
+    },
+    onError: toastError('Tạo vận đơn GHTK thất bại'),
+  });
+}
+
+/** Testing helper — simulates the carrier webhook so the status-sync flow
+ *  can be exercised without a real account (GHN/GHTK can't reach localhost). */
+export function useSimulateCarrierWebhook(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (carrierStatus: string) =>
+      ordersApi.simulateCarrierWebhook(orderId, carrierStatus),
+    onSuccess: (shipment) => {
+      qc.setQueryData(orderKeys.shipment(orderId), shipment);
+      toast.success('Đã giả lập cập nhật webhook');
+    },
+    onError: toastError('Giả lập webhook thất bại'),
+  });
+}
+
+/** Reset a failed shipment back to blank so the carrier picker re-appears
+ *  and the admin can start a fresh delivery attempt.
+ *
+ *  Race-condition note: `useUpdateOrderStatus.onSettled` calls
+ *  `invalidateQueries(['orders'])` which is a prefix of the shipment key
+ *  `['orders','shipment',id]` — this triggers a background refetch that can
+ *  overwrite the reset result with stale server data. `onMutate` cancels any
+ *  in-flight shipment fetch before the reset starts to prevent that. */
+export function useResetShipment(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => ordersApi.resetShipment(orderId),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: orderKeys.shipment(orderId) });
+    },
+    onSuccess: (shipment) => {
+      qc.setQueryData(orderKeys.shipment(orderId), shipment);
+      toast.success('Sẵn sàng giao lại — chọn đơn vị vận chuyển bên dưới');
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: orderKeys.shipment(orderId) });
+    },
+    onError: toastError('Không thể reset thông tin vận chuyển'),
+  });
+}
+
+/** Fetch printable GHTK label HTML on demand — opens in a new window which
+ *  auto-calls window.print() so the admin can send it straight to the printer. */
+export function useGetShipmentLabel(orderId: string) {
+  return useMutation({
+    mutationFn: () => ordersApi.getShipmentLabel(orderId),
+    onError: toastError('Không thể tải phiếu vận chuyển'),
   });
 }
 

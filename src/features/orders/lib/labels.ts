@@ -4,6 +4,7 @@ import {
   OrderStatus,
   PaymentMethodCode,
   PaymentStatus,
+  ShipmentStatus,
 } from '@/types';
 
 /** Human labels for enums used only in the orders UI. */
@@ -98,3 +99,53 @@ export function orderStatusOptions(fulfillment: FulfillmentType): OrderStatus[] 
   }
   return ORDER_STATUS_OPTIONS;
 }
+
+export const SHIPMENT_STATUS_LABEL: Record<ShipmentStatus, string> = {
+  [ShipmentStatus.PENDING]: 'Chờ lấy hàng',
+  [ShipmentStatus.SHIPPED]: 'Đã lấy hàng',
+  [ShipmentStatus.IN_TRANSIT]: 'Đang vận chuyển',
+  [ShipmentStatus.DELIVERED]: 'Đã giao',
+  [ShipmentStatus.RETURNED]: 'Hoàn hàng',
+  [ShipmentStatus.PROBLEM]: 'Sự cố',
+  [ShipmentStatus.PICKUP_FAILED]: 'Không lấy được hàng',
+};
+
+export const SHIPMENT_STATUS_OPTIONS = Object.values(ShipmentStatus);
+
+/** Sentinel for "tự giao" (in-house/self-delivery) — not a real courier, so it
+ *  isn't in the carrier preset list proper; kept separate for clarity. */
+export const SELF_DELIVERY_CARRIER = 'Tự giao';
+
+/** Common couriers operating in Vietnam — a starting preset, not an
+ *  enforced enum (`Shipment.carrier` is free text on the BE on purpose, so a
+ *  new courier never needs a code change). The form also offers "Khác" to
+ *  type any other name. */
+/** Representative raw carrier statuses for the "giả lập webhook" testing
+ *  helper — mirrors `GHTK_STATUS_MAP` (shopping-api, `carrier-status-maps.ts`),
+ *  not the full vocabulary, just enough to exercise pending → shipped → delivered
+ *  and the failed-delivery → hoàn hàng path. */
+export const MOCK_WEBHOOK_STATUS_OPTIONS: Record<
+  string,
+  { value: string; label: string }[]
+> = {
+  GHTK: [
+    { value: '2', label: '2 — đã tiếp nhận' },
+    { value: '3', label: '3 — đã lấy hàng' },
+    { value: '4', label: '4 — đang vận chuyển' },
+    { value: '5', label: '5 — đã giao, chờ đối soát' },
+    { value: '9', label: '9 — không giao được (hoàn hàng)' },
+    { value: '20', label: '20 — đang hoàn (hoàn hàng)' },
+    { value: '21', label: '21 — đã hoàn (hoàn hàng)' },
+    { value: '7', label: '7 — không lấy được hàng (trước bàn giao)' },
+    { value: '-1', label: '-1 — hủy đơn (sự cố)' },
+  ],
+};
+
+export const CARRIER_PRESETS = [SELF_DELIVERY_CARRIER, 'GHTK'] as const;
+
+/** Quick-pick carriers — self-delivery plus the API-integrated courier. */
+export const QUICK_PICK_CARRIERS = [SELF_DELIVERY_CARRIER, 'GHTK'] as const;
+
+/** No long-tail presets — only GHTK is the active carrier. "Khác" free-text
+ *  is still available in the dropdown for edge cases. */
+export const LONG_TAIL_CARRIER_PRESETS: string[] = [];

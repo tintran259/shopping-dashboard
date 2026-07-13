@@ -7,6 +7,7 @@ import {
   PaymentStatus,
   ProductStatus,
   ReviewStatus,
+  ShipmentStatus,
 } from '@/types';
 
 type BadgeVariant = NonNullable<BadgeProps['variant']>;
@@ -62,6 +63,16 @@ const CUSTOMER_STATUS: Record<CustomerStatus, StatusMeta> = {
   [CustomerStatus.DISABLED]: { label: 'Đã khóa', variant: 'destructive' },
 };
 
+const SHIPMENT_STATUS: Record<ShipmentStatus, StatusMeta> = {
+  [ShipmentStatus.PENDING]: { label: 'Chờ lấy hàng', variant: 'warning' },
+  [ShipmentStatus.SHIPPED]: { label: 'Đã lấy hàng', variant: 'info' },
+  [ShipmentStatus.IN_TRANSIT]: { label: 'Đang vận chuyển', variant: 'default' },
+  [ShipmentStatus.DELIVERED]: { label: 'Đã giao', variant: 'success' },
+  [ShipmentStatus.RETURNED]: { label: 'Hoàn hàng', variant: 'destructive' },
+  [ShipmentStatus.PROBLEM]: { label: 'Sự cố', variant: 'destructive' },
+  [ShipmentStatus.PICKUP_FAILED]: { label: 'Không lấy được hàng', variant: 'destructive' },
+};
+
 const REGISTRY = {
   order: ORDER_STATUS,
   payment: PAYMENT_STATUS,
@@ -70,6 +81,7 @@ const REGISTRY = {
   inventory: INVENTORY_STATUS,
   review: REVIEW_STATUS,
   customer: CUSTOMER_STATUS,
+  shipment: SHIPMENT_STATUS,
 } as const;
 
 type StatusKind = keyof typeof REGISTRY;

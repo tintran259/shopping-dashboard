@@ -7,6 +7,7 @@ import type {
   PaymentMethodCode,
   PaymentStatus,
   PaginationParams,
+  ShipmentStatus,
 } from '@/types';
 
 /** Columns the admin order list can be sorted by (must match BE allowlist). */
@@ -22,6 +23,7 @@ export interface AdminOrderListParams extends PaginationParams {
   branchId?: string;
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
+  shipmentStatus?: ShipmentStatus;
   sortBy?: OrderSortField;
   sortOrder?: 'ASC' | 'DESC';
 }
@@ -104,6 +106,47 @@ export interface Order extends BaseEntity {
   notes?: string;
   placedAt?: string;
   items: OrderItem[];
+  /** Virtual — populated by admin list query; null when no shipment exists yet. */
+  shipmentStatus?: ShipmentStatus | null;
+}
+
+/** Shipment tracking (carrier/tracking no/fee/status) — supplementary info
+ *  attached to an order, fetched separately from `Order` itself
+ *  (`GET /admin/orders/:id/shipment`, `null` until an admin fills it in). */
+export interface Shipment extends BaseEntity {
+  orderId: string;
+  carrier?: string;
+  trackingNo?: string;
+  status: ShipmentStatus;
+  /** The carrier's own status string verbatim (e.g. GHN's "delivering") —
+   *  set automatically by their webhook, far more granular than `status`. */
+  carrierStatusRaw?: string;
+  fee: string;
+  shippedAt?: string;
+  inTransitAt?: string;
+  deliveredAt?: string;
+  /** Stamped when the carrier reports a failed delivery / return. */
+  returnedAt?: string;
+  /** Stamped when the carrier reports a problem (cancel/lost/damage/pickup-fail). */
+  problemAt?: string;
+}
+
+export interface UpsertShipmentInput {
+  carrier?: string;
+  trackingNo?: string;
+  status?: ShipmentStatus;
+  fee?: string;
+}
+
+/** What the admin fills in to create a real GHTK shipping order — everything
+ *  else (recipient/address/pickup) is derived server-side; `district` is the
+ *  one field our own location data can't provide (2025 reform: province →
+ *  ward only, no district). */
+export interface CreateGhtkShipmentInput {
+  district: string;
+  value?: number;
+  note?: string;
+  isFreeship?: boolean;
 }
 
 // ── Create (staff-entered order, POST /admin/orders) ────────────────

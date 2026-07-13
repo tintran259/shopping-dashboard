@@ -9,6 +9,7 @@ export const orderKeys = {
   detail: (id: string) => [...orderKeys.all, 'detail', id] as const,
   summary: (params: OrderSummaryParams) =>
     [...orderKeys.all, 'summary', params] as const,
+  shipment: (id: string) => [...orderKeys.all, 'shipment', id] as const,
 };
 
 export function useOrders(params: AdminOrderListParams) {
@@ -32,6 +33,14 @@ export function useOrder(id: string | undefined) {
   return useQuery({
     queryKey: orderKeys.detail(id ?? ''),
     queryFn: () => ordersApi.getById(id as string),
+    enabled: !!id,
+  });
+}
+
+export function useShipment(id: string | undefined) {
+  return useQuery({
+    queryKey: orderKeys.shipment(id ?? ''),
+    queryFn: () => ordersApi.getShipment(id as string),
     enabled: !!id,
   });
 }

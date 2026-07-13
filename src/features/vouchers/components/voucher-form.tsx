@@ -22,13 +22,13 @@ import { Form } from '@/components/ui/form';
 import { FormField } from '@/components/shared/form-field';
 import { MoneyInput } from '@/components/shared/money-input';
 import { Switch } from '@/components/shared/switch';
-import { VoucherCustomerScope, VoucherType } from '@/types';
+import { ShippingMethodCode, VoucherCustomerScope, VoucherType } from '@/types';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { BranchMultiSelect } from './branch-multi-select';
 import { CustomerMultiPicker } from './customer-multi-picker';
 import { ProductMultiPicker } from './product-multi-picker';
-import { VOUCHER_TYPE_LABEL } from '../lib/labels';
+import { SHIPPING_METHOD_LABEL, VOUCHER_TYPE_LABEL } from '../lib/labels';
 import { voucherFormSchema, type VoucherFormValues } from '../lib/schema';
 
 /** Form element id — pages render the submit button in the top-right header,
@@ -91,10 +91,37 @@ export function VoucherForm({ defaultValues, onSubmit }: VoucherFormProps) {
     defaultValues,
   });
   const watchType = form.watch('type');
+  const watchValue = form.watch('value');
   const products = form.watch('products');
   const branches = form.watch('branches');
   const customerScope = form.watch('customerScope');
   const customers = form.watch('customers');
+
+  // Voucher SHIPPING: value === '0' nghĩa là miễn phí toàn bộ phí ship (100%);
+  // value > 0 là giảm tối đa X đ. Xem BE `VouchersService.evaluate`.
+  const shipFull = watchType === VoucherType.SHIPPING && watchValue === '0';
+
+  // Phương thức áp dụng của voucher ship: [] = cả hai; 1 phần tử = riêng.
+  const shippingMethods = form.watch('shippingMethods');
+  const shipMethodChoice: 'all' | ShippingMethodCode =
+    shippingMethods.length === 1 &&
+    shippingMethods[0] === ShippingMethodCode.STANDARD
+      ? ShippingMethodCode.STANDARD
+      : shippingMethods.length === 1 &&
+          shippingMethods[0] === ShippingMethodCode.EXPRESS
+        ? ShippingMethodCode.EXPRESS
+        : 'all';
+
+  // "Khách hàng áp dụng" gộp 4 lựa chọn trên nền enum 3 giá trị: `specific` +
+  // danh sách rỗng = mọi khách ("all"); `specific` + danh sách = khách cụ thể.
+  const scopeChoice: 'all' | 'specific' | 'guests' | 'users' =
+    customerScope === VoucherCustomerScope.GUESTS
+      ? 'guests'
+      : customerScope === VoucherCustomerScope.USERS
+        ? 'users'
+        : customers.length > 0
+          ? 'specific'
+          : 'all';
 
   return (
     <Form {...form}>
@@ -128,7 +155,21 @@ export function VoucherForm({ defaultValues, onSubmit }: VoucherFormProps) {
                   name="type"
                   label="Loại"
                   render={(f) => (
-                    <Select value={f.value} onValueChange={f.onChange}>
+                    <Select
+                      value={f.value}
+                      onValueChange={(v) => {
+                        f.onChange(v);
+                        // SHIPPING mặc định miễn phí toàn bộ (value='0'); rời
+                        // SHIPPING thì bỏ sentinel '0' đi để không lẫn.
+                        if (v === VoucherType.SHIPPING) {
+                          if (!form.getValues('value')) {
+                            form.setValue('value', '0', { shouldDirty: true });
+                          }
+                        } else if (form.getValues('value') === '0') {
+                          form.setValue('value', '', { shouldDirty: true });
+                        }
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -145,22 +186,58 @@ export function VoucherForm({ defaultValues, onSubmit }: VoucherFormProps) {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="value"
-                  label={watchType === VoucherType.PERCENT ? 'Giá trị (%)' : 'Giá trị (đ)'}
-                  render={(f) =>
-                    watchType === VoucherType.PERCENT ? (
-                      <Input {...f} placeholder="15" />
-                    ) : (
-                      <MoneyInput value={f.value ?? ''} onChange={f.onChange} />
-                    )
-                  }
-                />
+                {watchType === VoucherType.SHIPPING ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Mức giảm phí vận chuyển</label>
+                    <Select
+                      value={shipFull ? 'full' : 'amount'}
+                      onValueChange={(v) =>
+                        form.setValue('value', v === 'full' ? '0' : '', {
+                          shouldDirty: true,
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full">Miễn phí toàn bộ (100%)</SelectItem>
+                        <SelectItem value="amount">Giảm tối đa số tiền</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {!shipFull && (
+                      <FormField
+                        control={form.control}
+                        name="value"
+                        render={(f) => (
+                          <MoneyInput
+                            value={f.value ?? ''}
+                            onChange={f.onChange}
+                            placeholder="Số tiền tối đa"
+                          />
+                        )}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="value"
+                    label={watchType === VoucherType.PERCENT ? 'Giá trị (%)' : 'Giá trị (đ)'}
+                    render={(f) =>
+                      watchType === VoucherType.PERCENT ? (
+                        <Input {...f} placeholder="15" />
+                      ) : (
+                        <MoneyInput value={f.value ?? ''} onChange={f.onChange} />
+                      )
+                    }
+                  />
+                )}
                 <FormField
                   control={form.control}
                   name="minSubtotal"
                   label="Đơn tối thiểu"
+                  description="Bỏ trống = áp dụng cho mọi đơn, không yêu cầu tối thiểu."
                   render={(f) => (
                     <MoneyInput value={f.value ?? ''} onChange={f.onChange} placeholder="Không yêu cầu" />
                   )}
@@ -177,6 +254,36 @@ export function VoucherForm({ defaultValues, onSubmit }: VoucherFormProps) {
                     <MoneyInput value={f.value ?? ''} onChange={f.onChange} placeholder="Không giới hạn" />
                   )}
                 />
+              )}
+
+              {watchType === VoucherType.SHIPPING && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Áp dụng cho phương thức</label>
+                  <Select
+                    value={shipMethodChoice}
+                    onValueChange={(v) =>
+                      form.setValue('shippingMethods', v === 'all' ? [] : [v], {
+                        shouldDirty: true,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Cả hai (tiêu chuẩn &amp; nhanh)</SelectItem>
+                      <SelectItem value={ShippingMethodCode.STANDARD}>
+                        Chỉ {SHIPPING_METHOD_LABEL[ShippingMethodCode.STANDARD]}
+                      </SelectItem>
+                      <SelectItem value={ShippingMethodCode.EXPRESS}>
+                        Chỉ {SHIPPING_METHOD_LABEL[ShippingMethodCode.EXPRESS]}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Voucher chỉ áp dụng khi khách chọn phương thức giao hàng phù hợp.
+                  </p>
+                </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
@@ -290,7 +397,7 @@ export function VoucherForm({ defaultValues, onSubmit }: VoucherFormProps) {
             <CardHeader>
               <CardTitle>
                 Khách hàng áp dụng
-                {customerScope === VoucherCustomerScope.SPECIFIC && customers.length > 0
+                {scopeChoice === 'specific' && customers.length > 0
                   ? ` (${customers.length})`
                   : ''}
               </CardTitle>
@@ -300,38 +407,53 @@ export function VoucherForm({ defaultValues, onSubmit }: VoucherFormProps) {
                 {(
                   [
                     {
-                      value: VoucherCustomerScope.SPECIFIC,
-                      title: 'Chọn khách hàng',
-                      desc: 'Giới hạn theo danh sách khách hàng cụ thể bên dưới — bỏ trống danh sách = không giới hạn (áp dụng cho mọi khách).',
+                      key: 'all',
+                      title: 'Tất cả khách hàng',
+                      desc: 'Áp dụng cho mọi khách — cả khách vãng lai (không đăng nhập) và khách đã đăng nhập.',
                     },
                     {
-                      value: VoucherCustomerScope.GUESTS,
+                      key: 'specific',
+                      title: 'Chọn khách hàng cụ thể',
+                      desc: 'Chỉ áp dụng cho danh sách khách hàng chọn bên dưới.',
+                    },
+                    {
+                      key: 'guests',
                       title: 'Toàn bộ khách vãng lai',
                       desc: 'Chỉ áp dụng cho đơn đặt không đăng nhập tài khoản.',
                     },
                     {
-                      value: VoucherCustomerScope.USERS,
+                      key: 'users',
                       title: 'Toàn bộ tài khoản',
                       desc: 'Áp dụng cho mọi khách đã đăng nhập, không giới hạn tài khoản cụ thể nào.',
                     },
                   ] as const
                 ).map((opt) => (
                   <label
-                    key={opt.value}
+                    key={opt.key}
                     className={cn(
                       'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
-                      customerScope === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-accent',
+                      scopeChoice === opt.key ? 'border-primary bg-primary/5' : 'hover:bg-accent',
                     )}
                   >
                     <input
                       type="radio"
                       name="customerScope"
                       className="mt-1 size-4 shrink-0"
-                      checked={customerScope === opt.value}
+                      checked={scopeChoice === opt.key}
                       onChange={() => {
-                        form.setValue('customerScope', opt.value, { shouldDirty: true });
-                        if (opt.value !== VoucherCustomerScope.SPECIFIC) {
+                        // 4 lựa chọn UI ↔ enum 3 giá trị: "all" & "specific" đều
+                        // là scope `specific`, khác nhau ở danh sách khách.
+                        if (opt.key === 'guests') {
+                          form.setValue('customerScope', VoucherCustomerScope.GUESTS, { shouldDirty: true });
                           form.setValue('customers', [], { shouldDirty: true });
+                        } else if (opt.key === 'users') {
+                          form.setValue('customerScope', VoucherCustomerScope.USERS, { shouldDirty: true });
+                          form.setValue('customers', [], { shouldDirty: true });
+                        } else {
+                          form.setValue('customerScope', VoucherCustomerScope.SPECIFIC, { shouldDirty: true });
+                          if (opt.key === 'all') {
+                            form.setValue('customers', [], { shouldDirty: true });
+                          }
                         }
                       }}
                     />
@@ -343,7 +465,7 @@ export function VoucherForm({ defaultValues, onSubmit }: VoucherFormProps) {
                 ))}
               </div>
 
-              {customerScope === VoucherCustomerScope.SPECIFIC && (
+              {scopeChoice === 'specific' && (
                 <FormField
                   control={form.control}
                   name="customers"

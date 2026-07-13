@@ -8,6 +8,14 @@ export interface Branch extends BaseEntity {
   phone?: string;
   isDefault: boolean;
   isActive: boolean;
+  /** GHN "shop id" this branch ships from — the pickup address itself is
+   *  configured once in GHN's own merchant dashboard against this id. */
+  ghnShopId?: string;
+  /** District/ward (quận/huyện, phường/xã) this branch ships from, for GHTK's
+   *  pickup address — GHTK requires them but our own location data no
+   *  longer models a district level (2025 reform: province → ward only). */
+  ghtkPickupDistrict?: string;
+  ghtkPickupWard?: string;
 }
 
 export interface CreateBranchInput {
@@ -18,6 +26,9 @@ export interface CreateBranchInput {
   phone?: string;
   isDefault?: boolean;
   isActive?: boolean;
+  ghnShopId?: string;
+  ghtkPickupDistrict?: string;
+  ghtkPickupWard?: string;
 }
 
 export type UpdateBranchInput = Partial<CreateBranchInput>;

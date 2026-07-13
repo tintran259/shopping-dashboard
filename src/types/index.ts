@@ -106,6 +106,15 @@ export const VoucherCustomerScope = {
 export type VoucherCustomerScope =
   (typeof VoucherCustomerScope)[keyof typeof VoucherCustomerScope];
 
+/** Home-delivery methods a shipping voucher can be restricted to (mirrors the
+ *  storefront + BE `ShippingMethodCode`). */
+export const ShippingMethodCode = {
+  STANDARD: 'standard',
+  EXPRESS: 'express',
+} as const;
+export type ShippingMethodCode =
+  (typeof ShippingMethodCode)[keyof typeof ShippingMethodCode];
+
 export const ReviewStatus = {
   PENDING: 'pending',
   PUBLISHED: 'published',
@@ -121,6 +130,22 @@ export const PaymentMethodCode = {
 } as const;
 export type PaymentMethodCode =
   (typeof PaymentMethodCode)[keyof typeof PaymentMethodCode];
+
+/** Shipment tracking status (carrier/tracking no) — supplementary info,
+ *  independent of `OrderStatus`. */
+export const ShipmentStatus = {
+  PENDING: 'pending', // chờ lấy hàng
+  SHIPPED: 'shipped', // đã lấy hàng (giao cho ĐVVC)
+  IN_TRANSIT: 'in_transit', // đang vận chuyển
+  DELIVERED: 'delivered', // đã giao
+  /** Giao thất bại / hàng hoàn về (mapped from carrier fail/return webhooks). */
+  RETURNED: 'returned',
+  /** Sự cố sau bàn giao: hủy phía carrier / mất / hư hỏng trong vận chuyển. */
+  PROBLEM: 'problem',
+  /** Sự cố trước bàn giao: carrier không lấy được hàng — hàng chưa rời kho. */
+  PICKUP_FAILED: 'pickup_failed',
+} as const;
+export type ShipmentStatus = (typeof ShipmentStatus)[keyof typeof ShipmentStatus];
 
 /** Every persisted BE entity extends this. */
 export interface BaseEntity {

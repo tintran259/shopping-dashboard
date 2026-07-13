@@ -20,7 +20,7 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { OrderChannel, OrderStatus, PaymentStatus } from '@/types';
+import { OrderChannel, OrderStatus, PaymentStatus, ShipmentStatus } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { ROUTES } from '@/app/routes';
 import { useBranches } from '@/features/inventory';
@@ -29,6 +29,7 @@ import {
   ORDER_CHANNEL_LABEL,
   ORDER_STATUS_LABEL,
   PAYMENT_STATUS_LABEL,
+  SHIPMENT_STATUS_LABEL,
   orderStatusLabel,
 } from '../lib/labels';
 import type { Order, OrderSortField } from '../types';
@@ -47,6 +48,7 @@ export function OrdersPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<string>(ALL);
   const [paymentStatus, setPaymentStatus] = useState<string>(ALL);
+  const [shipmentStatus, setShipmentStatus] = useState<string>(ALL);
   const [sort, setSort] = useState<DataTableSort>({
     field: 'placedAt',
     direction: 'DESC',
@@ -61,7 +63,7 @@ export function OrdersPage() {
   // Đổi bất kỳ bộ lọc nào → về trang 1.
   useEffect(() => {
     setPage(1);
-  }, [q, status, paymentStatus, currentBranchId, sort.field, sort.direction]);
+  }, [q, status, paymentStatus, shipmentStatus, currentBranchId, sort.field, sort.direction]);
 
   const query = useOrders({
     page,
@@ -71,6 +73,8 @@ export function OrdersPage() {
     status: status === ALL ? undefined : (status as OrderStatus),
     paymentStatus:
       paymentStatus === ALL ? undefined : (paymentStatus as PaymentStatus),
+    shipmentStatus:
+      shipmentStatus === ALL ? undefined : (shipmentStatus as ShipmentStatus),
     sortBy: sort.field as OrderSortField,
     sortOrder: sort.direction,
   });
@@ -137,6 +141,21 @@ export function OrdersPage() {
       ),
     },
     {
+      id: 'shipment',
+      header: 'Vận chuyển',
+      cell: (o) => {
+        if (o.status === OrderStatus.CANCELLED || !o.shipmentStatus)
+          return <span className="text-xs text-muted-foreground">—</span>;
+        return (
+          <StatusBadge
+            kind="shipment"
+            value={o.shipmentStatus}
+            label={SHIPMENT_STATUS_LABEL[o.shipmentStatus]}
+          />
+        );
+      },
+    },
+    {
       id: 'payment',
       header: 'Thanh toán',
       cell: (o) => <StatusBadge kind="payment" value={o.paymentStatus} />,
@@ -200,6 +219,20 @@ export function OrdersPage() {
             {Object.values(PaymentStatus).map((s) => (
               <SelectItem key={s} value={s}>
                 {PAYMENT_STATUS_LABEL[s]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={shipmentStatus} onValueChange={setShipmentStatus}>
+          <SelectTrigger className="lg:w-52">
+            <SelectValue placeholder="Vận chuyển" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Mọi vận chuyển</SelectItem>
+            {Object.values(ShipmentStatus).map((s) => (
+              <SelectItem key={s} value={s}>
+                {SHIPMENT_STATUS_LABEL[s]}
               </SelectItem>
             ))}
           </SelectContent>
