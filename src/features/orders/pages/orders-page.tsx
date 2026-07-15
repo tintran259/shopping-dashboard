@@ -24,6 +24,7 @@ import { OrderChannel, OrderStatus, PaymentStatus, ShipmentStatus } from '@/type
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { ROUTES } from '@/app/routes';
 import { useBranches } from '@/features/inventory';
+import { ExpressBadge } from '../components/express-badge';
 import { useOrders } from '../hooks/use-orders';
 import {
   ORDER_CHANNEL_LABEL,
@@ -90,12 +91,14 @@ export function OrdersPage() {
       header: 'Mã đơn',
       sortable: true,
       cell: (o) => (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-medium">{o.code}</span>
           {/* Chỉ gắn nhãn trường hợp ngoại lệ (BO tạo) — mặc định khách tự đặt. */}
           {o.channel === OrderChannel.ADMIN && (
             <Badge variant="info">{ORDER_CHANNEL_LABEL[OrderChannel.ADMIN]}</Badge>
           )}
+          {/* Cảnh báo đơn giao nhanh — admin cần ưu tiên xử lý. */}
+          <ExpressBadge method={o.shippingMethod} />
         </div>
       ),
     },

@@ -36,6 +36,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { ROUTES } from '@/app/routes';
+import { ExpressBadge } from '../components/express-badge';
 import { OrderItemsTable } from '../components/order-items-table';
 import { OrderStatusStepper } from '../components/order-status-stepper';
 import { ShipmentCard } from '../components/shipment-card';
@@ -75,6 +76,7 @@ export function OrderDetailPage() {
               ? `Đặt lúc ${formatDateTime(query.data.placedAt ?? query.data.createdAt)} · ${ORDER_CHANNEL_LABEL[query.data.channel]}`
               : undefined
           }
+          actions={<ExpressBadge method={query.data?.shippingMethod} />}
         />
       </div>
 
@@ -186,13 +188,16 @@ function OrderDetailContent({ order }: { order: Order }) {
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Vận chuyển</span>
-                  {!isDelivery ? (
-                    <span className="text-sm text-muted-foreground">Nhận tại cửa hàng</span>
-                  ) : shipment ? (
-                    <StatusBadge kind="shipment" value={shipment.status} />
-                  ) : (
-                    <span className="text-sm text-muted-foreground">Chưa tạo</span>
-                  )}
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <ExpressBadge method={order.shippingMethod} />
+                    {!isDelivery ? (
+                      <span className="text-sm text-muted-foreground">Nhận tại cửa hàng</span>
+                    ) : shipment ? (
+                      <StatusBadge kind="shipment" value={shipment.status} />
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Chưa tạo</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Tồn kho</span>

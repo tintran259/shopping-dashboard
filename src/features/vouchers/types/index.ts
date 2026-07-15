@@ -58,9 +58,10 @@ export interface Voucher extends BaseEntity {
   /** Only for `shipping` vouchers: which home-delivery methods it applies to
    *  (standard/express). Empty = every method. */
   shippingMethods?: string[];
-  /** Present on the paginated list response in place of the full arrays above
-   *  (the list only ever shows "N sản phẩm/chi nhánh/khách", never the
-   *  members) — the edit form's `GET /vouchers/:id` still returns full arrays. */
+  /** Counts on the paginated list response. `products`/`customers` come back as
+   *  counts only there (list shows "N sản phẩm/khách"); `branches` above IS
+   *  returned in full on the list too, so it can name the branches. The edit
+   *  form's `GET /vouchers/:id` returns every relation in full. */
   productsCount?: number;
   branchesCount?: number;
   customersCount?: number;

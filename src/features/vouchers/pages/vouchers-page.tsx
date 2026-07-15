@@ -138,9 +138,17 @@ export function VouchersPage() {
               : v.customersCount
                 ? `${v.customersCount} khách`
                 : null;
+        // Nêu tên chi nhánh khi giới hạn ít (≤2) để nhìn là biết ngay; nhiều
+        // hơn thì rút gọn về số lượng cho khỏi tràn cột.
+        const branchPart =
+          v.branches?.length && v.branches.length <= 2
+            ? v.branches.map((b) => b.name).join(', ')
+            : v.branchesCount
+              ? `${v.branchesCount} chi nhánh`
+              : null;
         const parts = [
           v.productsCount ? `${v.productsCount} SP` : null,
-          v.branchesCount ? `${v.branchesCount} chi nhánh` : null,
+          branchPart,
           customerPart,
         ].filter(Boolean);
         return (

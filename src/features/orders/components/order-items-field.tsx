@@ -1,4 +1,11 @@
-import { useFieldArray, type Control } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import {
+  useController,
+  useFieldArray,
+  useFormContext,
+  useWatch,
+  type Control,
+} from 'react-hook-form';
 import { AlertTriangle, Minus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { InventoryStatus } from '@/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
-import { useVariantStock } from '@/features/inventory';
+import { stockAvailability, useVariantStock } from '@/features/inventory';
 import type { OrderFormValues, OrderItemFormValue } from '../lib/order-schema';
 import { ProductPicker, type PickedVariant } from './product-picker';
 
@@ -31,29 +37,30 @@ interface OrderItemsFieldProps {
  */
 export function OrderItemsField({ control, branchId }: OrderItemsFieldProps) {
   const items = useFieldArray<OrderFormValues, 'items'>({ control, name: 'items' });
+  const { getValues, setValue } = useFormContext<OrderFormValues>();
+  // Live values (setValue on a quantity doesn't refresh useFieldArray's `fields`
+  // snapshot) so the subtotal below tracks typed quantities in real time.
+  const watched = useWatch({ control, name: 'items' }) ?? [];
 
   const handlePick = (picked: PickedVariant) => {
     const existingIndex = items.fields.findIndex(
       (f) => f.variantId === picked.variantId,
     );
     if (existingIndex >= 0) {
-      const current = items.fields[existingIndex];
-      if (!current) return;
-      items.update(existingIndex, {
-        variantId: current.variantId,
-        productName: current.productName,
-        variantTitle: current.variantTitle,
-        sku: current.sku,
-        price: current.price,
-        quantity: current.quantity + 1,
+      // Already in the cart → bump quantity by 1. Read the CURRENT quantity
+      // (may have been typed) via getValues, and use setValue rather than
+      // fieldArray.update so the row isn't remounted (would steal input focus).
+      const current = getValues(`items.${existingIndex}.quantity`) ?? 1;
+      setValue(`items.${existingIndex}.quantity`, current + 1, {
+        shouldDirty: true,
       });
     } else {
       items.append({ ...picked, quantity: 1 });
     }
   };
 
-  const subtotal = items.fields.reduce(
-    (sum, f) => sum + Number(f.price) * f.quantity,
+  const subtotal = watched.reduce(
+    (sum, i) => sum + Number(i.price) * (i.quantity || 0),
     0,
   );
 
@@ -81,11 +88,10 @@ export function OrderItemsField({ control, branchId }: OrderItemsFieldProps) {
               {items.fields.map((field, index) => (
                 <OrderItemRow
                   key={field.id}
-                  field={field}
+                  control={control}
+                  index={index}
+                  item={field}
                   branchId={branchId}
-                  onChangeQuantity={(quantity) =>
-                    items.update(index, { ...field, quantity })
-                  }
                   onRemove={() => items.remove(index)}
                 />
               ))}
@@ -104,52 +110,67 @@ export function OrderItemsField({ control, branchId }: OrderItemsFieldProps) {
 }
 
 function OrderItemRow({
-  field,
+  control,
+  index,
+  item,
   branchId,
-  onChangeQuantity,
   onRemove,
 }: {
-  field: OrderItemFormValue;
+  control: Control<OrderFormValues>;
+  index: number;
+  /** Display-only snapshot (name/sku/price/title never change after picking). */
+  item: OrderItemFormValue;
   branchId?: string;
-  onChangeQuantity: (quantity: number) => void;
   onRemove: () => void;
 }) {
+  // Quantity is driven through a controller (not fieldArray.update) so editing
+  // it never remounts the row — typing keeps focus and multi-digit input works.
+  const { field: qty } = useController({
+    control,
+    name: `items.${index}.quantity`,
+  });
+  const quantity = qty.value;
+
+  // Local draft lets the field go momentarily empty while typing (so a digit can
+  // be deleted and retyped) without the value snapping back to 1 mid-edit.
+  const [draft, setDraft] = useState(String(quantity));
+  useEffect(() => {
+    setDraft(String(quantity));
+  }, [quantity]);
+
+  const setQuantity = (n: number) => qty.onChange(Math.max(1, n));
+
   // One row = one variant → the hook here is per line item, not per keystroke.
-  const { data: stock } = useVariantStock(field.variantId);
-  const branchStock = branchId
-    ? stock?.find((s) => s.branchId === branchId)
-    : undefined;
-  const isPreorder = branchStock?.status === InventoryStatus.PREORDER;
-  const available = branchStock
-    ? Math.max(0, branchStock.quantity - branchStock.reserved)
-    : undefined;
+  // Shares cache with the form-level useVariantsStock (same query key).
+  const { data: stock } = useVariantStock(item.variantId);
+  const avail = stockAvailability(stock, branchId);
   const exceedsStock =
-    !!branchId && !isPreorder && available !== undefined && field.quantity > available;
+    !!avail && !avail.isPreorder && quantity > avail.available;
 
   return (
     <TableRow className="hover:bg-transparent align-top">
       <TableCell>
-        <p className="font-medium">{field.productName}</p>
+        <p className="font-medium">{item.productName}</p>
         <p className="text-xs text-muted-foreground">
-          {field.variantTitle ? `${field.variantTitle} · ` : ''}
-          {field.sku}
+          {item.variantTitle ? `${item.variantTitle} · ` : ''}
+          {item.sku}
         </p>
-        {branchId &&
+        {avail &&
           (exceedsStock ? (
             <p className="mt-1 flex items-center gap-1 text-xs font-medium text-destructive">
               <AlertTriangle className="size-3" />
-              Vượt tồn kho tại chi nhánh (còn {formatNumber(available ?? 0)})
+              Vượt tồn kho tại chi nhánh (còn {formatNumber(avail.available)})
             </p>
-          ) : isPreorder ? (
+          ) : avail.isPreorder ? (
             <p className="mt-1 text-xs text-info">Hàng đặt trước tại chi nhánh</p>
-          ) : available !== undefined ? (
+          ) : (
             <p className="mt-1 text-xs text-muted-foreground">
-              Còn {formatNumber(available)} tại chi nhánh
+              Còn {formatNumber(avail.available)} tại chi nhánh
             </p>
-          ) : null)}
+          ))}
       </TableCell>
       <TableCell className="text-right tabular-nums">
-        {formatCurrency(field.price)}
+        {formatCurrency(item.price)}
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-center gap-1">
@@ -158,27 +179,37 @@ function OrderItemRow({
             variant="outline"
             size="icon"
             className="size-7"
-            disabled={field.quantity <= 1}
-            onClick={() => onChangeQuantity(field.quantity - 1)}
+            disabled={quantity <= 1}
+            onClick={() => setQuantity(quantity - 1)}
             aria-label="Giảm số lượng"
           >
             <Minus className="size-3" />
           </Button>
           <Input
-            type="number"
-            min={1}
-            value={field.quantity}
+            inputMode="numeric"
             // Đã có nút +/- riêng — ẩn spinner mặc định của trình duyệt vì nó
             // đè lên chữ số trong ô hẹp này.
             className="h-7 w-14 [appearance:textfield] text-center tabular-nums [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            onChange={(e) => onChangeQuantity(Math.max(1, Number(e.target.value) || 1))}
+            value={draft}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[^\d]/g, '');
+              setDraft(raw);
+              if (raw !== '') qty.onChange(Math.max(1, Number(raw)));
+            }}
+            onBlur={() => {
+              if (draft === '' || Number(draft) < 1) {
+                setDraft('1');
+                qty.onChange(1);
+              }
+              qty.onBlur();
+            }}
           />
           <Button
             type="button"
             variant="outline"
             size="icon"
             className="size-7"
-            onClick={() => onChangeQuantity(field.quantity + 1)}
+            onClick={() => setQuantity(quantity + 1)}
             aria-label="Tăng số lượng"
           >
             <Plus className="size-3" />
@@ -186,7 +217,7 @@ function OrderItemRow({
         </div>
       </TableCell>
       <TableCell className="text-right font-medium tabular-nums">
-        {formatCurrency(String(Number(field.price) * field.quantity))}
+        {formatCurrency(String(Number(item.price) * quantity))}
       </TableCell>
       <TableCell>
         <Button

@@ -8,6 +8,7 @@ import type {
   PaymentStatus,
   PaginationParams,
   ShipmentStatus,
+  ShippingMethodCode,
 } from '@/types';
 
 /** Columns the admin order list can be sorted by (must match BE allowlist). */
@@ -85,6 +86,10 @@ export interface Order extends BaseEntity {
   customerId?: string;
   branchId: string;
   fulfillment: FulfillmentType;
+  /** Phương thức giao hàng khách chọn (giao tiêu chuẩn / giao nhanh). Chỉ có
+   *  với đơn giao tận nơi; null cho đơn nhận tại cửa hàng hoặc đơn cũ. Dùng để
+   *  gắn nhãn "giao nhanh" cho đơn cần ưu tiên xử lý. */
+  shippingMethod?: ShippingMethodCode | null;
   /** Who placed the order — 'admin' = staff-entered (phone/walk-in/B2B), not
    *  the customer themselves. */
   channel: OrderChannel;
@@ -180,6 +185,8 @@ export interface CreateOrderInput {
   recipientEmail?: string;
   shippingAddress?: CreateOrderShippingAddressInput;
   voucherCode?: string;
+  /** Phương thức giao (giao tiêu chuẩn / giao nhanh) — chỉ đơn giao tận nơi. */
+  shippingMethod?: ShippingMethodCode;
   shippingFee?: string;
   invoice?: CreateOrderInvoiceInput;
   notes?: string;

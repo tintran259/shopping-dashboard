@@ -31,6 +31,12 @@ export const ordersApi = {
     code: string;
     subtotal: number;
     shippingFee?: number;
+    /** Fulfilling branch — required so a branch-restricted voucher previews the
+     *  same way it's enforced on submit (the create payload always sends it). */
+    branchId?: string;
+    /** Chosen delivery method — lets a method-restricted shipping voucher
+     *  (e.g. express-only) preview correctly, mirroring the BE enforcement. */
+    shippingMethod?: string;
   }) => apiClient.get<VoucherValidation>('/vouchers/validate', { params }),
 
   /** [admin] Dashboard aggregate — branch/date-range scoped, not paginated. */

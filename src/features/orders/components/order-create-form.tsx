@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,15 +17,20 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { FormField } from '@/components/shared/form-field';
 import { MoneyInput } from '@/components/shared/money-input';
-import { FulfillmentType } from '@/types';
+import { FulfillmentType, ShippingMethodCode } from '@/types';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { useBranches } from '@/features/inventory';
+import {
+  stockAvailability,
+  useBranches,
+  useVariantsStock,
+} from '@/features/inventory';
 import { useProvinces, useWards } from '@/features/locations';
 import {
   BO_PAYMENT_METHODS,
   FULFILLMENT_LABEL,
   PAYMENT_METHOD_LABEL,
+  SHIPPING_METHOD_LABEL,
 } from '../lib/labels';
 import {
   emptyOrderForm,
@@ -60,7 +67,9 @@ export function OrderCreateForm({ onSubmit }: OrderCreateFormProps) {
   const wantInvoice = form.watch('wantInvoice');
   const items = form.watch('items');
   const shippingFee = form.watch('shippingFee');
+  const shippingMethod = form.watch('shippingMethod');
   const voucherCode = form.watch('voucherCode');
+  const isDelivery = fulfillment === FulfillmentType.DELIVERY;
 
   const { data: wards } = useWards(provinceCode);
 
@@ -78,7 +87,7 @@ export function OrderCreateForm({ onSubmit }: OrderCreateFormProps) {
   const itemsSignature = items.map((i) => `${i.variantId}:${i.quantity}`).join(',');
   useEffect(() => {
     setVoucherResult(null);
-  }, [itemsSignature, fee, voucherCode]);
+  }, [itemsSignature, fee, voucherCode, shippingMethod, branchId]);
 
   // Nhận tại cửa hàng thì không có phí ship — ô phí ship cũng ẩn khi ở chế độ
   // này, nếu không reset về 0 thì giá trị cũ (nhập lúc còn ở Giao hàng) sẽ âm
@@ -90,12 +99,43 @@ export function OrderCreateForm({ onSubmit }: OrderCreateFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fulfillment]);
 
+  // Tồn kho từng dòng tại chi nhánh đang chọn (dùng chung cache với từng dòng).
+  // Chặn tạo đơn nếu có sản phẩm vượt tồn (trừ hàng đặt trước) — BE cũng kiểm
+  // tra lại, đây là lớp UX chặn sớm với thông báo rõ ràng.
+  const stockResults = useVariantsStock(items.map((i) => i.variantId));
+  const stockIssues = branchId
+    ? items.filter((it, idx) => {
+        const avail = stockAvailability(stockResults[idx]?.data, branchId);
+        return !!avail && !avail.isPreorder && it.quantity > avail.available;
+      })
+    : [];
+
+  const handleValidatedSubmit = (values: OrderFormValues) => {
+    if (stockIssues.length > 0) {
+      toast.error(
+        'Có sản phẩm vượt tồn kho tại chi nhánh — giảm số lượng hoặc đổi chi nhánh trước khi tạo đơn.',
+      );
+      return;
+    }
+    onSubmit(values);
+  };
+
   const handleValidateVoucher = () => {
     const code = voucherCode?.trim();
     if (!code) return;
     setVoucherResult(null);
     validateVoucher.mutate(
-      { code, subtotal, shippingFee: fee },
+      {
+        code,
+        subtotal,
+        shippingFee: fee,
+        // Gửi chi nhánh để voucher giới hạn chi nhánh preview đúng như lúc
+        // submit (payload tạo đơn luôn kèm branchId).
+        ...(branchId ? { branchId } : {}),
+        // Chỉ đơn giao tận nơi mới có phương thức — để voucher ship giới hạn
+        // phương thức (vd chỉ "giao nhanh") preview đúng như BE enforce.
+        ...(isDelivery ? { shippingMethod } : {}),
+      },
       { onSuccess: (res) => setVoucherResult({ discount: res.discount }) },
     );
   };
@@ -104,7 +144,7 @@ export function OrderCreateForm({ onSubmit }: OrderCreateFormProps) {
     <Form {...form}>
       <form
         id={ORDER_FORM_ID}
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(handleValidatedSubmit)}
         className="space-y-6"
       >
         <div className="grid gap-6 lg:grid-cols-3">
@@ -277,15 +317,32 @@ export function OrderCreateForm({ onSubmit }: OrderCreateFormProps) {
               </CardHeader>
               <CardContent>
                 {!branchId && (
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    Chọn chi nhánh xử lý ở trên để xem tồn kho theo chi nhánh khi thêm sản phẩm.
-                  </p>
+                  <div className="mb-3 flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                    <span>
+                      Hãy <strong>chọn chi nhánh xử lý</strong> ở trên trước khi
+                      tìm sản phẩm — ô tìm kiếm đang tạm khóa vì tồn kho được
+                      hiển thị và kiểm theo từng chi nhánh.
+                    </span>
+                  </div>
                 )}
                 <OrderItemsField control={form.control} branchId={branchId} />
                 {form.formState.errors.items?.message && (
                   <p className="mt-2 text-xs font-medium text-destructive">
                     {form.formState.errors.items.message}
                   </p>
+                )}
+                {stockIssues.length > 0 && (
+                  <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    <p className="flex items-center gap-1 font-medium">
+                      <AlertTriangle className="size-3.5" />
+                      Vượt tồn kho tại chi nhánh
+                    </p>
+                    <p className="mt-0.5">
+                      {stockIssues.map((i) => i.productName).join(', ')} — giảm số
+                      lượng hoặc đổi chi nhánh trước khi tạo đơn.
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -297,7 +354,39 @@ export function OrderCreateForm({ onSubmit }: OrderCreateFormProps) {
                 <CardTitle>Vận chuyển &amp; giảm giá</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {fulfillment === FulfillmentType.DELIVERY && (
+                {isDelivery && (
+                  <FormField
+                    control={form.control}
+                    name="shippingMethod"
+                    label="Phương thức giao"
+                    render={(f) => (
+                      <div className="flex gap-2">
+                        {Object.values(ShippingMethodCode).map((m) => {
+                          const active = f.value === m;
+                          const isExpress = m === ShippingMethodCode.EXPRESS;
+                          return (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => f.onChange(m)}
+                              className={cn(
+                                'flex-1 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors',
+                                active && isExpress
+                                  ? 'border-warning bg-warning/15 text-warning'
+                                  : active
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'text-muted-foreground hover:bg-accent',
+                              )}
+                            >
+                              {SHIPPING_METHOD_LABEL[m]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  />
+                )}
+                {isDelivery && (
                   <FormField
                     control={form.control}
                     name="shippingFee"

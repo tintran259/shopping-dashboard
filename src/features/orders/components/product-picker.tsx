@@ -3,11 +3,11 @@ import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
-import { InventoryStatus, ProductStatus } from '@/types';
+import { ProductStatus } from '@/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { useProducts, type Product, type ProductVariant } from '@/features/catalog';
-import { useVariantStock } from '@/features/inventory';
+import { stockAvailability, useVariantStock } from '@/features/inventory';
 
 export interface PickedVariant {
   variantId: string;
@@ -50,25 +50,34 @@ export function ProductPicker({ onPick, branchId }: ProductPickerProps) {
     return () => clearTimeout(t);
   }, [input]);
 
+  // Bắt buộc chọn chi nhánh trước: tồn kho hiển thị/kiểm theo chi nhánh, nên
+  // chưa chọn thì khóa ô tìm để tránh thêm sản phẩm "mù" tồn kho.
+  const noBranch = !branchId;
+
   const query = useProducts(
     { q, limit: 8, status: ProductStatus.ACTIVE },
-    { enabled: q.length >= 2 },
+    { enabled: q.length >= 2 && !noBranch },
   );
   const results = query.data?.data ?? [];
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open && !noBranch} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={input}
+            disabled={noBranch}
             onChange={(e) => {
               setInput(e.target.value);
               setOpen(true);
             }}
             onFocus={() => input.trim().length >= 2 && setOpen(true)}
-            placeholder="Tìm sản phẩm theo tên để thêm vào đơn…"
+            placeholder={
+              noBranch
+                ? 'Chọn chi nhánh xử lý trước khi tìm sản phẩm…'
+                : 'Tìm sản phẩm theo tên để thêm vào đơn…'
+            }
             className="pl-8"
           />
         </div>
@@ -135,13 +144,7 @@ function VariantResultRow({
 }) {
   // One row = one variant → the hook here is per list item, not per keystroke.
   const { data: stock } = useVariantStock(variant.id);
-  const branchStock = branchId
-    ? stock?.find((s) => s.branchId === branchId)
-    : undefined;
-  const isPreorder = branchStock?.status === InventoryStatus.PREORDER;
-  const available = branchStock
-    ? Math.max(0, branchStock.quantity - branchStock.reserved)
-    : undefined;
+  const avail = stockAvailability(stock, branchId);
 
   return (
     <li>
@@ -161,19 +164,19 @@ function VariantResultRow({
           <span className="tabular-nums text-muted-foreground">
             {formatCurrency(variant.price)}
           </span>
-          {branchId &&
-            (isPreorder ? (
+          {avail &&
+            (avail.isPreorder ? (
               <span className="text-[11px] text-info">Đặt trước</span>
             ) : (
               <span
                 className={cn(
                   'text-[11px] tabular-nums',
-                  (available ?? 0) > 0
+                  avail.available > 0
                     ? 'text-muted-foreground'
                     : 'font-medium text-destructive',
                 )}
               >
-                Còn {formatNumber(available ?? 0)} tại chi nhánh
+                Còn {formatNumber(avail.available)} tại chi nhánh
               </span>
             ))}
         </span>

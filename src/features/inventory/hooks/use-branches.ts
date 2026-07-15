@@ -1,5 +1,6 @@
 import {
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
@@ -33,6 +34,20 @@ export function useVariantStock(variantId: string | undefined) {
     queryKey: branchKeys.variantStock(variantId ?? ''),
     queryFn: () => branchesApi.variantStock(variantId as string),
     enabled: !!variantId,
+  });
+}
+
+/** Stock for several variants at once (order-create validation). Results keep
+ *  the same order as `variantIds`; shares the per-variant cache with
+ *  {@link useVariantStock} (identical query keys), so rows and form-level
+ *  validation never double-fetch. */
+export function useVariantsStock(variantIds: string[]) {
+  return useQueries({
+    queries: variantIds.map((id) => ({
+      queryKey: branchKeys.variantStock(id),
+      queryFn: () => branchesApi.variantStock(id),
+      enabled: !!id,
+    })),
   });
 }
 

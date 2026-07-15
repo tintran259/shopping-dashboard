@@ -174,8 +174,13 @@ export function useGetShipmentLabel(orderId: string) {
 /** On-demand voucher preview while filling the create form — display only. */
 export function useValidateVoucher() {
   return useMutation({
-    mutationFn: (params: { code: string; subtotal: number; shippingFee?: number }) =>
-      ordersApi.validateVoucher(params),
+    mutationFn: (params: {
+      code: string;
+      subtotal: number;
+      shippingFee?: number;
+      branchId?: string;
+      shippingMethod?: string;
+    }) => ordersApi.validateVoucher(params),
     onError: toastError('Mã giảm giá không hợp lệ'),
   });
 }

@@ -15,6 +15,7 @@ import {
   type ColumnDef,
   type DataTableSort,
 } from '@/components/shared/data-table';
+import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -24,9 +25,35 @@ import { ROUTES } from '@/app/routes';
 import { useCategories } from '../hooks/use-catalog-refs';
 import { useProducts } from '../hooks/use-products';
 import { PRODUCT_STATUS_LABEL } from '../lib/labels';
-import type { Product } from '../types';
+import type { Product, ProductExpiryState } from '../types';
 
 const ALL = '__all__';
+
+/** Ngưỡng "sắp hết hạn" (ngày) — khớp mặc định BE. */
+const EXPIRING_SOON_DAYS = 30;
+
+const EXPIRY_FILTER_LABEL: Record<ProductExpiryState, string> = {
+  expiring: 'Sắp hết hạn',
+  expired: 'Đã hết hạn',
+  valid: 'Còn hạn',
+  none: 'Vô thời hạn',
+};
+
+/** Số ngày còn lại tới HSD (âm = đã quá hạn); null nếu vô thời hạn. Chỉ để hiển
+ *  thị badge trên dữ liệu đã tải — việc lọc vẫn do BE làm (server-side). */
+function daysToExpiry(expiryDate?: string | null): number | null {
+  if (!expiryDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const exp = new Date(`${expiryDate.slice(0, 10)}T00:00:00`);
+  return Math.round((exp.getTime() - today.getTime()) / 86_400_000);
+}
+
+/** 'YYYY-MM-DD' → 'DD/MM/YYYY'. */
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${d}/${m}/${y}`;
+}
 
 /** Primary image (or first) of a product, if any. */
 function thumbnailOf(p: Product): string | undefined {
@@ -43,6 +70,7 @@ export function ProductsPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<string>(ALL);
   const [category, setCategory] = useState<string>(ALL);
+  const [expiry, setExpiry] = useState<string>(ALL);
   const [sort, setSort] = useState<DataTableSort>({
     field: 'createdAt',
     direction: 'DESC',
@@ -66,6 +94,8 @@ export function ProductsPage() {
     status: status === ALL ? undefined : (status as ProductStatus),
     // BE lọc theo slug nhóm sản phẩm (server-side).
     category: category === ALL ? undefined : category,
+    // Lọc theo hạn dùng — server-side (BE tự tính theo CURRENT_DATE).
+    expiryState: expiry === ALL ? undefined : (expiry as ProductExpiryState),
     sort: `${sort.field}:${sort.direction}`,
   });
 
@@ -116,6 +146,32 @@ export function ProductsPage() {
       id: 'status',
       header: 'Trạng thái',
       cell: (p) => <StatusBadge kind="product" value={p.status} />,
+    },
+    {
+      id: 'expiryDate',
+      header: 'Hạn sử dụng',
+      sortable: true,
+      cell: (p) => {
+        const days = daysToExpiry(p.expiryDate);
+        if (days === null)
+          return <span className="text-xs text-muted-foreground">Vô thời hạn</span>;
+        const label = formatDate(p.expiryDate!);
+        if (days < 0)
+          return (
+            <div className="space-y-0.5">
+              <Badge variant="destructive">Đã hết hạn</Badge>
+              <p className="text-xs text-muted-foreground tabular-nums">{label}</p>
+            </div>
+          );
+        if (days <= EXPIRING_SOON_DAYS)
+          return (
+            <div className="space-y-0.5">
+              <Badge variant="warning">Còn {days} ngày</Badge>
+              <p className="text-xs text-muted-foreground tabular-nums">{label}</p>
+            </div>
+          );
+        return <span className="text-sm tabular-nums">{label}</span>;
+      },
     },
   ];
 
@@ -177,6 +233,28 @@ export function ProductsPage() {
             {Object.values(ProductStatus).map((s) => (
               <SelectItem key={s} value={s}>
                 {PRODUCT_STATUS_LABEL[s]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={expiry}
+          onValueChange={(v) => {
+            setExpiry(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="sm:w-48">
+            <SelectValue placeholder="Hạn sử dụng" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Mọi hạn dùng</SelectItem>
+            {(
+              ['expiring', 'expired', 'valid', 'none'] as ProductExpiryState[]
+            ).map((s) => (
+              <SelectItem key={s} value={s}>
+                {EXPIRY_FILTER_LABEL[s]}
               </SelectItem>
             ))}
           </SelectContent>

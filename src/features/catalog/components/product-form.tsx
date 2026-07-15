@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { AlertTriangle } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Form } from '@/components/ui/form';
+import { DatePickerField } from '@/components/shared/date-picker-field';
 import { FormField } from '@/components/shared/form-field';
 import { MoneyInput } from '@/components/shared/money-input';
 import { ProductStatus } from '@/types';
@@ -100,6 +102,12 @@ export function ProductForm({ productId, defaultValues, onSubmit }: ProductFormP
   const percentActive = comparePercent.trim() !== '';
   const amountActive = !percentActive && !!compareAtPrice?.trim();
 
+  // Cảnh báo MỀM (chỉ nhắc, không chặn lưu): giá gạch lẽ ra phải cao hơn giá cơ
+  // bản mới hiển thị được mức giảm — nếu ≤ giá cơ bản thì gạch giá vô nghĩa.
+  const baseNum = Number(basePrice) || 0;
+  const compareNum = Number(compareAtPrice) || 0;
+  const compareBelowBase = compareNum > 0 && baseNum > 0 && compareNum <= baseNum;
+
   useEffect(() => {
     if (!percentActive) return;
     const base = Number(basePrice) || 0;
@@ -112,6 +120,28 @@ export function ProductForm({ productId, defaultValues, onSubmit }: ProductFormP
       shouldValidate: true,
     });
   }, [percentActive, comparePercent, basePrice, form]);
+
+  // Tự điền "Giá cơ bản" = giá thấp nhất trong các biến thể khi sản phẩm có
+  // biến thể (giá hiển thị dạng "từ X đ") để admin đỡ phải tự nghĩ. Chỉ tự điền
+  // CHO TỚI KHI admin tự sửa ô (cờ touched, giống slug) — sau đó dừng hẳn để
+  // admin xoá/gõ tự do, không bị ô "nhảy" lại giá min mỗi lần xoá trống. Luồng
+  // sửa: đã có giá sẵn → coi như đã touched → không tự đè giá đã lưu.
+  const variants = form.watch('variants');
+  const basePriceTouched = useRef(defaultValues.basePrice.trim() !== '');
+  useEffect(() => {
+    if (!hasVariants || basePriceTouched.current) return;
+    const prices = variants
+      .map((v) => Number(v.price))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (!prices.length) return;
+    const min = String(Math.min(...prices));
+    if (form.getValues('basePrice') !== min) {
+      form.setValue('basePrice', min, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+  }, [hasVariants, variants, form]);
 
   const toggleCategory = (id: string) => {
     const set = new Set(selectedCategories);
@@ -320,6 +350,11 @@ export function ProductForm({ productId, defaultValues, onSubmit }: ProductFormP
                     <MoneyInput
                       {...f}
                       value={f.value ?? ''}
+                      onChange={(v) => {
+                        // Admin đã tự sửa → ngừng tự điền theo giá biến thể.
+                        basePriceTouched.current = true;
+                        f.onChange(v);
+                      }}
                       placeholder="Nhập giá cơ bản…"
                     />
                   )}
@@ -357,9 +392,45 @@ export function ProductForm({ productId, defaultValues, onSubmit }: ProductFormP
                     </div>
                   )}
                 />
+                {compareBelowBase && (
+                  <p className="flex items-center gap-1.5 text-xs text-warning">
+                    <AlertTriangle className="size-3.5 shrink-0" />
+                    Giá gạch đang thấp hơn hoặc bằng giá cơ bản — nên đặt cao hơn
+                    để hiển thị mức giảm (không bắt buộc, vẫn lưu được).
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Giá bán thực tế lấy theo từng biến thể; giá cơ bản chỉ để hiển
-                  thị.
+                  {hasVariants
+                    ? 'Giá bán thực tế lấy theo từng biến thể; giá cơ bản chỉ để hiển thị — tự điền theo giá biến thể thấp nhất, sửa được.'
+                    : 'Giá bán thực tế lấy theo biến thể; giá cơ bản để hiển thị.'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Hạn sử dụng</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="expiryDate"
+                  label="Ngày hết hạn"
+                  render={(f) => (
+                    <DatePickerField
+                      value={f.value ?? ''}
+                      onChange={f.onChange}
+                      placeholder="Chọn ngày hết hạn…"
+                      clearLabel="Bỏ chọn (vô thời hạn)"
+                    />
+                  )}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Bỏ trống nếu hàng <strong>không có hạn dùng</strong> (quần áo,
+                  đồ dùng…) — sẽ hiển thị “vô thời hạn”. Với hàng có HSD (đồ ăn,
+                  mỹ phẩm…), chọn ngày để hệ thống cảnh báo{' '}
+                  <strong>sắp hết hạn</strong> (trong 30 ngày) và{' '}
+                  <strong>đã hết hạn</strong> ở danh sách sản phẩm.
                 </p>
               </CardContent>
             </Card>

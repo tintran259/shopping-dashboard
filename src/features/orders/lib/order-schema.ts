@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FulfillmentType, PaymentMethodCode } from '@/types';
+import { FulfillmentType, PaymentMethodCode, ShippingMethodCode } from '@/types';
 import type { CreateOrderInput } from '../types';
 
 const optionalDecimal = z
@@ -38,6 +38,7 @@ export const orderFormSchema = z
     street: z.string().trim().optional(),
     items: z.array(orderItemSchema).min(1, 'Thêm ít nhất 1 sản phẩm'),
     voucherCode: z.string().trim().optional(),
+    shippingMethod: z.nativeEnum(ShippingMethodCode),
     shippingFee: optionalDecimal,
     notes: z.string().trim().optional(),
     wantInvoice: z.boolean(),
@@ -118,6 +119,7 @@ export function emptyOrderForm(): OrderFormValues {
     street: '',
     items: [],
     voucherCode: '',
+    shippingMethod: ShippingMethodCode.STANDARD,
     shippingFee: '0',
     notes: '',
     wantInvoice: false,
@@ -142,6 +144,7 @@ export function formToCreateOrderInput(values: OrderFormValues): CreateOrderInpu
       : {}),
     ...(values.fulfillment === FulfillmentType.DELIVERY
       ? {
+          shippingMethod: values.shippingMethod,
           shippingAddress: {
             recipientName: values.recipientName.trim(),
             phone: values.recipientPhone.trim(),

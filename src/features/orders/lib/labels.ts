@@ -5,12 +5,19 @@ import {
   PaymentMethodCode,
   PaymentStatus,
   ShipmentStatus,
+  ShippingMethodCode,
 } from '@/types';
 
 /** Human labels for enums used only in the orders UI. */
 export const FULFILLMENT_LABEL: Record<FulfillmentType, string> = {
   [FulfillmentType.DELIVERY]: 'Giao hàng',
   [FulfillmentType.PICKUP]: 'Nhận tại cửa hàng',
+};
+
+/** Home-delivery methods offered when staff create an order (BO). */
+export const SHIPPING_METHOD_LABEL: Record<ShippingMethodCode, string> = {
+  [ShippingMethodCode.STANDARD]: 'Giao tiêu chuẩn',
+  [ShippingMethodCode.EXPRESS]: 'Giao nhanh',
 };
 
 export const ORDER_CHANNEL_LABEL: Record<OrderChannel, string> = {

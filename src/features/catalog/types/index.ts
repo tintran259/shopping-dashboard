@@ -91,6 +91,8 @@ export interface Product extends BaseEntity {
   basePrice: string;
   compareAtPrice?: string;
   currency?: string;
+  /** Hạn sử dụng (YYYY-MM-DD). Null/absent = vô thời hạn. */
+  expiryDate?: string | null;
   images?: ProductImage[];
   options?: ProductOption[];
   variants?: ProductVariant[];
@@ -130,6 +132,9 @@ export interface CreateProductInput {
   brandId?: string;
   basePrice: string;
   compareAtPrice?: string;
+  /** Hạn sử dụng (YYYY-MM-DD). null = xoá/vô thời hạn (gửi null để BE clear khi
+   *  sửa; bỏ trống ở form = null). */
+  expiryDate?: string | null;
   categoryIds?: string[];
   images?: ProductImageInput[];
   options?: ProductOptionInput[];
@@ -138,10 +143,15 @@ export interface CreateProductInput {
 
 export type UpdateProductInput = Partial<CreateProductInput>;
 
+/** Lọc theo hạn dùng (khớp BE `expiryState`). */
+export type ProductExpiryState = 'valid' | 'expiring' | 'expired' | 'none';
+
 export interface ProductListParams extends PaginationParams {
   status?: ProductStatus;
   category?: string;
   brand?: string[];
+  expiryState?: ProductExpiryState;
+  expiringInDays?: number;
   /** "field:DIR" e.g. "createdAt:DESC". */
   sort?: string;
 }

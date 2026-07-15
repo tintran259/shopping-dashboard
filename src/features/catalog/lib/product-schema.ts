@@ -66,6 +66,12 @@ export const productFormSchema = z
     brandId: z.string().optional(),
     basePrice: decimalString,
     compareAtPrice: optionalDecimal,
+    /** Hạn sử dụng (YYYY-MM-DD). '' = vô thời hạn. */
+    expiryDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày không hợp lệ')
+      .or(z.literal(''))
+      .optional(),
     shortDescription: z.string().trim().optional(),
     description: z.string().trim().optional(),
     categoryIds: z.array(z.string()),
@@ -236,6 +242,7 @@ export function emptyProductForm(): ProductFormValues {
     brandId: NO_BRAND,
     basePrice: '',
     compareAtPrice: '',
+    expiryDate: '',
     shortDescription: '',
     description: '',
     categoryIds: [],
@@ -296,6 +303,8 @@ export function productToForm(p: Product): ProductFormValues {
     brandId: p.brandId ?? p.brand?.id ?? NO_BRAND,
     basePrice: p.basePrice,
     compareAtPrice: p.compareAtPrice ?? '',
+    // BE trả `date` dạng 'YYYY-MM-DD' (cắt phần giờ nếu có) — '' = vô thời hạn.
+    expiryDate: (p.expiryDate ?? '').slice(0, 10),
     shortDescription: p.shortDescription ?? '',
     description: p.description ?? '',
     categoryIds: (p.categories ?? []).map((c) => c.id),
@@ -382,6 +391,9 @@ export function formToPayload(values: ProductFormValues): CreateProductInput {
     ...(values.compareAtPrice
       ? { compareAtPrice: values.compareAtPrice.trim() }
       : {}),
+    // Luôn gửi (kể cả null) để khi admin xoá HSD ở form edit thì BE cũng xoá —
+    // omit sẽ bị hiểu là "giữ nguyên". '' = vô thời hạn → null.
+    expiryDate: values.expiryDate?.trim() ? values.expiryDate.trim() : null,
     ...(values.shortDescription
       ? { shortDescription: values.shortDescription.trim() }
       : {}),
