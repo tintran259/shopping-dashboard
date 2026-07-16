@@ -23,6 +23,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { OrderChannel, OrderStatus, PaymentStatus, ShipmentStatus } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { ROUTES } from '@/app/routes';
+import { usePermissions } from '@/features/auth';
 import { useBranches } from '@/features/inventory';
 import { ExpressBadge } from '../components/express-badge';
 import { useOrders } from '../hooks/use-orders';
@@ -39,6 +40,7 @@ const ALL = '__all__';
 
 export function OrdersPage() {
   const navigate = useNavigate();
+  const { can } = usePermissions();
   // Chi nhánh lọc riêng của trang này (không dùng chung state với Dashboard).
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null);
   const { data: branches } = useBranches();
@@ -179,10 +181,12 @@ export function OrdersPage() {
         title="Đơn hàng"
         description="Lọc theo chi nhánh, tìm kiếm và sắp xếp — xử lý phía máy chủ."
         actions={
-          <Button onClick={() => navigate(ROUTES.orderNew)}>
-            <Plus className="size-4" />
-            Tạo đơn hàng
-          </Button>
+          can('orders.create') && (
+            <Button onClick={() => navigate(ROUTES.orderNew)}>
+              <Plus className="size-4" />
+              Tạo đơn hàng
+            </Button>
+          )
         }
       />
 

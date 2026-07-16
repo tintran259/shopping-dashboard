@@ -21,6 +21,7 @@ import { Pagination } from '@/components/shared/pagination';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/app/routes';
+import { usePermissions } from '@/features/auth';
 import { useDeleteVoucher } from '../hooks/use-voucher-mutations';
 import { useVouchers, useVoucherStats } from '../hooks/use-vouchers';
 import { VOUCHER_TYPE_LABEL } from '../lib/labels';
@@ -53,6 +54,10 @@ const ALL = '__all__';
 
 export function VouchersPage() {
   const navigate = useNavigate();
+  const { can } = usePermissions();
+  const canCreate = can('vouchers.create');
+  const canUpdate = can('vouchers.update');
+  const canDelete = can('vouchers.delete');
   const deleteVoucher = useDeleteVoucher();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -198,32 +203,43 @@ export function VouchersPage() {
         return <Badge variant={meta.variant}>{meta.label}</Badge>;
       },
     },
-    {
-      id: 'actions',
-      header: '',
-      className: 'text-right',
-      cell: (v) => (
-        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Sửa"
-            onClick={() => navigate(ROUTES.voucherEdit(v.id))}
-          >
-            <Pencil className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-destructive"
-            aria-label="Xóa"
-            onClick={() => setToDelete(v)}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
-      ),
-    },
+    ...(canUpdate || canDelete
+      ? [
+          {
+            id: 'actions',
+            header: '',
+            className: 'text-right',
+            cell: (v: Voucher) => (
+              <div
+                className="flex justify-end gap-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {canUpdate && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Sửa"
+                    onClick={() => navigate(ROUTES.voucherEdit(v.id))}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive"
+                    aria-label="Xóa"
+                    onClick={() => setToDelete(v)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -232,10 +248,12 @@ export function VouchersPage() {
         title="Mã giảm giá"
         description="Quản lý mã khuyến mãi và điều kiện áp dụng."
         actions={
-          <Button onClick={() => navigate(ROUTES.voucherNew)}>
-            <Plus className="size-4" />
-            Thêm mã
-          </Button>
+          canCreate && (
+            <Button onClick={() => navigate(ROUTES.voucherNew)}>
+              <Plus className="size-4" />
+              Thêm mã
+            </Button>
+          )
         }
       />
 
@@ -292,7 +310,9 @@ export function VouchersPage() {
         isError={query.isError}
         error={query.error}
         onRetry={() => query.refetch()}
-        onRowClick={(v) => navigate(ROUTES.voucherEdit(v.id))}
+        onRowClick={
+          canUpdate ? (v) => navigate(ROUTES.voucherEdit(v.id)) : undefined
+        }
         emptyTitle="Chưa có mã giảm giá"
         emptyDescription="Thử đổi bộ lọc hoặc tạo mã mới."
       />

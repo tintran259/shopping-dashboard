@@ -24,6 +24,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { DataTable, type ColumnDef } from '@/components/shared/data-table';
 import { FormField } from '@/components/shared/form-field';
 import { PageHeader } from '@/components/shared/page-header';
+import { usePermissions } from '@/features/auth';
 import { useProvinces } from '@/features/locations';
 import {
   useBranches,
@@ -59,6 +60,8 @@ const emptyValues: FormValues = {
 type DialogTarget = { mode: 'create' } | { mode: 'edit'; branch: Branch };
 
 export function BranchesPage() {
+  const { can } = usePermissions();
+  const canManage = can('inventory.create');
   const query = useBranches();
   const { data: provinces } = useProvinces();
   const createBranch = useCreateBranch();
@@ -159,10 +162,12 @@ export function BranchesPage() {
         title="Chi nhánh"
         description="Quản lý các chi nhánh/kho hàng của hệ thống."
         actions={
-          <Button onClick={() => setDialogTarget({ mode: 'create' })}>
-            <Plus className="size-4" />
-            Thêm chi nhánh
-          </Button>
+          canManage && (
+            <Button onClick={() => setDialogTarget({ mode: 'create' })}>
+              <Plus className="size-4" />
+              Thêm chi nhánh
+            </Button>
+          )
         }
       />
 

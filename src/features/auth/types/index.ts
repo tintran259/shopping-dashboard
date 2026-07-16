@@ -12,7 +12,7 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
-/** Response of `GET /auth/me` (full customer entity, no secrets). */
+/** Response of `GET /auth/me` — hồ sơ + ngữ cảnh phân quyền (RBAC). */
 export interface Profile extends BaseEntity {
   email?: string;
   phone?: string;
@@ -20,6 +20,12 @@ export interface Profile extends BaseEntity {
   lastName?: string;
   type: CustomerType;
   role: CustomerRole;
-  status: string;
+  status?: string;
   defaultBranchId?: string;
+  isSuperAdmin?: boolean;
+  permissions?: string[];
+  allBranches?: boolean;
+  branchIds?: string[];
+  staffRoleId?: string | null;
+  staffRoleName?: string | null;
 }

@@ -31,8 +31,8 @@ export function LoginForm() {
   const onSubmit = form.handleSubmit((values) => {
     login.mutate(values, {
       onSuccess: (data) => {
-        // Chỉ tài khoản admin mới được vào BO.
-        if (data.user.role !== 'admin') {
+        // Nhân viên (admin) hoặc super admin mới được vào BO.
+        if (data.user.role !== 'admin' && data.user.role !== 'super_admin') {
           toast.error('Tài khoản này không có quyền truy cập Back Office.');
           return;
         }

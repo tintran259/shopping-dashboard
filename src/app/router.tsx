@@ -1,10 +1,19 @@
-import { lazy } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { lazy, type ReactNode } from 'react';
+import { createBrowserRouter } from 'react-router-dom';
 import { LoginPage } from '@/features/auth';
 import { DashboardLayout } from '@/app/layouts/dashboard-layout';
 import { ProtectedRoute } from '@/app/components/protected-route';
+import {
+  LandingRedirect,
+  PermissionRoute,
+} from '@/app/components/permission-route';
 import { NotFoundPage } from '@/app/components/not-found-page';
 import { ROUTES } from './routes';
+
+/** Bọc phần tử route bằng gate quyền (view = mở trang, manage = trang tạo/sửa). */
+const guard = (permission: string, element: ReactNode) => (
+  <PermissionRoute permission={permission}>{element}</PermissionRoute>
+);
 
 /**
  * Every page behind the login is lazy-loaded so each feature ships as its own
@@ -67,6 +76,18 @@ const ReviewsPage = lazy(() =>
 const LocationsPage = lazy(() =>
   import('@/features/locations').then((m) => ({ default: m.LocationsPage })),
 );
+const RolesPage = lazy(() =>
+  import('@/features/access').then((m) => ({ default: m.RolesPage })),
+);
+const RoleCreatePage = lazy(() =>
+  import('@/features/access').then((m) => ({ default: m.RoleCreatePage })),
+);
+const RoleDetailPage = lazy(() =>
+  import('@/features/access').then((m) => ({ default: m.RoleDetailPage })),
+);
+const AdminsPage = lazy(() =>
+  import('@/features/access').then((m) => ({ default: m.AdminsPage })),
+);
 
 export const router = createBrowserRouter([
   {
@@ -79,33 +100,115 @@ export const router = createBrowserRouter([
       {
         element: <DashboardLayout />,
         children: [
-          { index: true, element: <Navigate to={ROUTES.dashboard} replace /> },
-          { path: ROUTES.dashboard, element: <DashboardPage /> },
+          { index: true, element: <LandingRedirect /> },
+          {
+            path: ROUTES.dashboard,
+            element: guard('dashboard.view', <DashboardPage />),
+          },
 
           // Orders
-          { path: ROUTES.orders, element: <OrdersPage /> },
-          { path: ROUTES.orderNew, element: <OrderCreatePage /> },
-          { path: ROUTES.orderDetail(), element: <OrderDetailPage /> },
+          { path: ROUTES.orders, element: guard('orders.view', <OrdersPage />) },
+          {
+            path: ROUTES.orderNew,
+            element: guard('orders.create', <OrderCreatePage />),
+          },
+          {
+            path: ROUTES.orderDetail(),
+            element: guard('orders.view', <OrderDetailPage />),
+          },
 
           // Catalog
-          { path: ROUTES.products, element: <ProductsPage /> },
-          { path: ROUTES.productNew, element: <ProductCreatePage /> },
-          { path: ROUTES.productEdit(), element: <ProductEditPage /> },
-          { path: ROUTES.categories, element: <CategoriesPage /> },
-          { path: ROUTES.brands, element: <BrandsPage /> },
+          {
+            path: ROUTES.products,
+            element: guard('catalog.view', <ProductsPage />),
+          },
+          {
+            path: ROUTES.productNew,
+            element: guard('catalog.create', <ProductCreatePage />),
+          },
+          {
+            path: ROUTES.productEdit(),
+            element: guard('catalog.update', <ProductEditPage />),
+          },
+          {
+            path: ROUTES.categories,
+            element: guard('catalog.view', <CategoriesPage />),
+          },
+          { path: ROUTES.brands, element: guard('catalog.view', <BrandsPage />) },
 
           // Inventory
-          { path: ROUTES.branches, element: <BranchesPage /> },
-          { path: ROUTES.inventory, element: <InventoryPage /> },
+          {
+            path: ROUTES.branches,
+            element: guard('inventory.view', <BranchesPage />),
+          },
+          {
+            path: ROUTES.inventory,
+            element: guard('inventory.view', <InventoryPage />),
+          },
 
           // Others
-          { path: ROUTES.vouchers, element: <VouchersPage /> },
-          { path: ROUTES.voucherNew, element: <VoucherCreatePage /> },
-          { path: ROUTES.voucherEdit(), element: <VoucherEditPage /> },
-          { path: ROUTES.customers, element: <CustomersPage /> },
-          { path: ROUTES.customerDetail(), element: <CustomerDetailPage /> },
-          { path: ROUTES.reviews, element: <ReviewsPage /> },
-          { path: ROUTES.locations, element: <LocationsPage /> },
+          {
+            path: ROUTES.vouchers,
+            element: guard('vouchers.view', <VouchersPage />),
+          },
+          {
+            path: ROUTES.voucherNew,
+            element: guard('vouchers.create', <VoucherCreatePage />),
+          },
+          {
+            path: ROUTES.voucherEdit(),
+            element: guard('vouchers.update', <VoucherEditPage />),
+          },
+          {
+            path: ROUTES.customers,
+            element: guard('customers.view', <CustomersPage />),
+          },
+          {
+            path: ROUTES.customerDetail(),
+            element: guard('customers.view', <CustomerDetailPage />),
+          },
+          {
+            path: ROUTES.reviews,
+            element: guard('reviews.view', <ReviewsPage />),
+          },
+          {
+            path: ROUTES.locations,
+            element: guard('inventory.view', <LocationsPage />),
+          },
+
+          // Phân quyền (super admin)
+          {
+            path: ROUTES.roles,
+            element: (
+              <PermissionRoute superAdminOnly>
+                <RolesPage />
+              </PermissionRoute>
+            ),
+          },
+          {
+            path: ROUTES.roleNew,
+            element: (
+              <PermissionRoute superAdminOnly>
+                <RoleCreatePage />
+              </PermissionRoute>
+            ),
+          },
+          {
+            path: ROUTES.roleDetail(),
+            element: (
+              <PermissionRoute superAdminOnly>
+                <RoleDetailPage />
+              </PermissionRoute>
+            ),
+          },
+          {
+            path: ROUTES.admins,
+            element: (
+              <PermissionRoute superAdminOnly>
+                <AdminsPage />
+              </PermissionRoute>
+            ),
+          },
 
           { path: '*', element: <NotFoundPage /> },
         ],

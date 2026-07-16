@@ -5,7 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useBranches } from '@/features/inventory';
+import { useAllowedBranches } from '@/features/inventory';
 import { cn } from '@/lib/utils';
 
 const ALL_BRANCHES = '__all__';
@@ -21,7 +21,7 @@ interface BranchSwitcherProps {
  * Picking a specific branch tints the trigger to signal a "focused" view.
  */
 export function BranchSwitcher({ value, onChange }: BranchSwitcherProps) {
-  const { data: branches, isLoading } = useBranches();
+  const { data: branches, isLoading } = useAllowedBranches();
   const isScoped = !!value;
 
   return (

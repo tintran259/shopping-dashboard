@@ -47,8 +47,8 @@ export function ProtectedRoute() {
     );
   }
 
-  // Xác nhận không phải admin → chặn.
-  if (profile.role !== 'admin') {
+  // Chỉ nhân viên (admin) hoặc super admin mới vào được BO.
+  if (profile.role !== 'admin' && profile.role !== 'super_admin') {
     toast.error('Tài khoản của bạn không có quyền truy cập Back Office.');
     logout();
     return <Navigate to={ROUTES.login} replace />;

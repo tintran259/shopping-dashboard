@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CustomerRole, CustomerType } from '@/types';
 
-/** The `user` object returned by `POST /auth/login`. */
+/** The `user` object returned by `POST /auth/login` and `GET /auth/me`
+ *  (RBAC fields included: quyền + phạm vi chi nhánh của tài khoản). */
 export interface AuthUser {
   id: string;
   email?: string;
@@ -10,7 +11,21 @@ export interface AuthUser {
   lastName?: string;
   type: CustomerType;
   role: CustomerRole;
+  /** true = toàn quyền, mọi chi nhánh (bỏ qua permissions/branchIds). */
+  isSuperAdmin?: boolean;
+  /** Quyền hiệu lực `<feature>.<view|manage>` (super admin = toàn bộ). */
+  permissions?: string[];
+  /** true = mọi chi nhánh; false = giới hạn theo branchIds. */
+  allBranches?: boolean;
+  /** Chi nhánh được phép khi allBranches=false. */
+  branchIds?: string[];
+  staffRoleId?: string | null;
+  staffRoleName?: string | null;
 }
+
+/** true nếu tài khoản được vào Back Office (nhân viên hoặc super admin). */
+const isBackOffice = (role: CustomerRole) =>
+  role === 'admin' || role === 'super_admin';
 
 interface AuthState {
   token: string | null;
@@ -40,9 +55,9 @@ export const useAuthStore = create<AuthState>()(
           token,
           user,
           isAuthenticated: true,
-          isAdmin: user.role === 'admin',
+          isAdmin: isBackOffice(user.role),
         }),
-      setUser: (user) => set({ user, isAdmin: user.role === 'admin' }),
+      setUser: (user) => set({ user, isAdmin: isBackOffice(user.role) }),
       logout: () =>
         set({
           token: null,
@@ -57,7 +72,7 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         if (state?.token && state.user) {
           state.isAuthenticated = true;
-          state.isAdmin = state.user.role === 'admin';
+          state.isAdmin = isBackOffice(state.user.role);
         }
       },
     },

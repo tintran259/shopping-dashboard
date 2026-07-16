@@ -64,6 +64,7 @@ export type OrderChannel = (typeof OrderChannel)[keyof typeof OrderChannel];
 export const CustomerRole = {
   CUSTOMER: 'customer',
   ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin',
 } as const;
 export type CustomerRole = (typeof CustomerRole)[keyof typeof CustomerRole];
 

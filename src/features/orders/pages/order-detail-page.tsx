@@ -25,6 +25,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { QueryBoundary } from '@/components/shared/query-boundary';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { usePermissions } from '@/features/auth';
 import { useBranches } from '@/features/inventory';
 import {
   FulfillmentType,
@@ -96,6 +97,8 @@ export function OrderDetailPage() {
 function OrderDetailContent({ order }: { order: Order }) {
   const [cancelOpen, setCancelOpen] = useState(false);
 
+  const { can } = usePermissions();
+  const canManage = can('orders.update');
   const updateStatus = useUpdateOrderStatus(order.id);
   const confirmPayment = useConfirmPayment(order.id);
   const cancelOrder = useCancelOrder(order.id);
@@ -205,6 +208,8 @@ function OrderDetailContent({ order }: { order: Order }) {
                 </div>
               </div>
 
+              {canManage ? (
+                <>
               <Separator />
 
               <div className="space-y-1.5">
@@ -297,6 +302,12 @@ function OrderDetailContent({ order }: { order: Order }) {
                   Hủy đơn hàng
                 </Button>
               </div>
+                </>
+              ) : (
+                <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                  Bạn chỉ có quyền xem đơn hàng — không thao tác được.
+                </p>
+              )}
             </CardContent>
           </Card>
 

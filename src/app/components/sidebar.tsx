@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { Leaf } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { usePermissions } from '@/features/auth';
 import { NAV_GROUPS } from '@/config/nav';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/stores/ui-store';
@@ -7,6 +9,22 @@ import { useUiStore } from '@/stores/ui-store';
 export function Sidebar() {
   const location = useLocation();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
+  const { can, isSuperAdmin } = usePermissions();
+
+  // Ẩn mục không có quyền `view` (và mục super-admin-only nếu không phải super
+  // admin); ẩn luôn nhóm rỗng sau khi lọc.
+  const groups = useMemo(
+    () =>
+      NAV_GROUPS.map((g) => ({
+        ...g,
+        items: g.items.filter(
+          (item) =>
+            (!item.superAdminOnly || isSuperAdmin) &&
+            (!item.permission || can(item.permission)),
+        ),
+      })).filter((g) => g.items.length > 0),
+    [can, isSuperAdmin],
+  );
 
   const isActive = (to: string, prefixes?: string[]) => {
     if (location.pathname === to) return true;
@@ -33,7 +51,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-4 overflow-y-auto p-3">
-        {NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.label} className="space-y-1">
             {!collapsed && (
               <p className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

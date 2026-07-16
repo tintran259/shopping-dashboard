@@ -22,7 +22,7 @@ import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
   stockAvailability,
-  useBranches,
+  useAllowedBranches,
   useVariantsStock,
 } from '@/features/inventory';
 import { useProvinces, useWards } from '@/features/locations';
@@ -53,7 +53,7 @@ interface OrderCreateFormProps {
  * the order is actually submitted (golden rule: never trust FE math for money).
  */
 export function OrderCreateForm({ onSubmit }: OrderCreateFormProps) {
-  const { data: branches } = useBranches();
+  const { data: branches } = useAllowedBranches();
   const { data: provinces } = useProvinces();
 
   const form = useForm<OrderFormValues>({

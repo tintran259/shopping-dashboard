@@ -7,5 +7,6 @@ export {
   useUpsertInventory,
   branchKeys,
 } from './hooks/use-branches';
+export { useAllowedBranches } from './hooks/use-allowed-branches';
 export { stockAvailability, type StockAvailability } from './lib/stock';
 export type { Branch, BranchStock } from './types';

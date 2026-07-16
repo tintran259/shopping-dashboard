@@ -19,4 +19,8 @@ export const ROUTES = {
   customerDetail: (id = ':id') => `/customers/${id}`,
   reviews: '/reviews',
   locations: '/locations',
+  roles: '/access/roles',
+  roleNew: '/access/roles/new',
+  roleDetail: (id = ':id') => `/access/roles/${id}`,
+  admins: '/access/admins',
 } as const;

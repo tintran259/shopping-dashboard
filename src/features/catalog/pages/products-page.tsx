@@ -22,6 +22,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { ProductStatus } from '@/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { ROUTES } from '@/app/routes';
+import { usePermissions } from '@/features/auth';
 import { useCategories } from '../hooks/use-catalog-refs';
 import { useProducts } from '../hooks/use-products';
 import { PRODUCT_STATUS_LABEL } from '../lib/labels';
@@ -63,6 +64,7 @@ function thumbnailOf(p: Product): string | undefined {
 
 export function ProductsPage() {
   const navigate = useNavigate();
+  const { can } = usePermissions();
   const { data: categories } = useCategories();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -181,10 +183,12 @@ export function ProductsPage() {
         title="Sản phẩm"
         description="Quản lý sản phẩm, biến thể, tùy chọn và hình ảnh."
         actions={
-          <Button onClick={() => navigate(ROUTES.productNew)}>
-            <Plus className="size-4" />
-            Thêm sản phẩm
-          </Button>
+          can('catalog.create') && (
+            <Button onClick={() => navigate(ROUTES.productNew)}>
+              <Plus className="size-4" />
+              Thêm sản phẩm
+            </Button>
+          )
         }
       />
 
