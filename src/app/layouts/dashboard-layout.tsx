@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useNotificationsSocket } from '@/features/notifications';
 import { Sidebar } from '@/app/components/sidebar';
 import { Topbar } from '@/app/components/topbar';
 
@@ -18,6 +19,8 @@ function PageFallback() {
 }
 
 export function DashboardLayout() {
+  // Kết nối realtime notification (chỉ sau đăng nhập — layout nằm sau ProtectedRoute).
+  useNotificationsSocket();
   return (
     <div className="flex min-h-svh bg-background">
       <Sidebar />

@@ -19,6 +19,8 @@ export const ROUTES = {
   customerDetail: (id = ':id') => `/customers/${id}`,
   reviews: '/reviews',
   locations: '/locations',
+  notifications: '/notifications',
+  notificationSettings: '/settings/notifications',
   roles: '/access/roles',
   roleNew: '/access/roles/new',
   roleDetail: (id = ':id') => `/access/roles/${id}`,

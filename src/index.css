@@ -105,3 +105,17 @@
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 }
+
+/* Thanh đếm ngược tự-đóng cho toast thông báo (co dần từ trái sang phải). */
+@keyframes toast-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.toast-countdown {
+  transform-origin: left;
+  animation: toast-countdown linear forwards;
+}

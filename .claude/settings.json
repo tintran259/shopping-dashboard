@@ -50,7 +50,9 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('  quantity=',d.get\\('quantity'\\),'reserved=',d.get\\('reserved'\\),'available=',d.get\\('available'\\)\\)\")",
       "Bash(node verify_states.mjs)",
       "Bash(curl -s -X POST http://localhost:3002/api/admin/orders/d1f4d84b-4d23-4bdf-899b-40b74a2eaa20/shipment/mock-webhook -H 'Authorization: Bearer __CMDSUB_OUTPUT__' -H 'Content-Type: application/json' -d '{\"carrierStatus\":\"5\"}')",
-      "Bash(node tl2.mjs 90-delivered.png)"
+      "Bash(node tl2.mjs 90-delivered.png)",
+      "Bash(cd /Users/macbookpro14m1pro/Dev/shopping-api *)",
+      "Read(//Users/macbookpro14m1pro/.npm/_logs/**)"
     ]
   }
 }

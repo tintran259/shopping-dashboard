@@ -88,6 +88,16 @@ const RoleDetailPage = lazy(() =>
 const AdminsPage = lazy(() =>
   import('@/features/access').then((m) => ({ default: m.AdminsPage })),
 );
+const NotificationsPage = lazy(() =>
+  import('@/features/notifications').then((m) => ({
+    default: m.NotificationsPage,
+  })),
+);
+const NotificationSettingsPage = lazy(() =>
+  import('@/features/notifications').then((m) => ({
+    default: m.NotificationSettingsPage,
+  })),
+);
 
 export const router = createBrowserRouter([
   {
@@ -174,6 +184,13 @@ export const router = createBrowserRouter([
           {
             path: ROUTES.locations,
             element: guard('inventory.view', <LocationsPage />),
+          },
+
+          // Notification Center — cá nhân, mọi user BO đều truy cập được.
+          { path: ROUTES.notifications, element: <NotificationsPage /> },
+          {
+            path: ROUTES.notificationSettings,
+            element: <NotificationSettingsPage />,
           },
 
           // Phân quyền (super admin)

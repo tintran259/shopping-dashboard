@@ -1,5 +1,6 @@
 import { PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { NotificationBell } from '@/features/notifications';
 import { useUiStore } from '@/stores/ui-store';
 import { AccountMenu } from './account-menu';
 import { ThemeToggle } from './theme-toggle';
@@ -19,6 +20,7 @@ export function Topbar() {
         </Button>
       </div>
       <div className="flex items-center gap-2">
+        <NotificationBell />
         <ThemeToggle />
         <AccountMenu />
       </div>
