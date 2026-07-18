@@ -51,6 +51,13 @@ export interface Customer extends BaseEntity {
   addresses?: Address[];
 }
 
+/** Sửa hồ sơ khách (PATCH /admin/customers/:id) — chỉ các trường cơ bản. */
+export interface UpdateCustomerInput {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}
+
 /** Staff-entered B2B account (POST /admin/customers/b2b) — creates the login
  *  + company profile together; unlike self-registration, the company details
  *  are required up front. */

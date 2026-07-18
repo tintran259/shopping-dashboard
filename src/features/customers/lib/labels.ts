@@ -20,3 +20,19 @@ export function customerDisplayName(c: {
   const name = [c.lastName, c.firstName].filter(Boolean).join(' ').trim();
   return name || c.email || c.phone || '—';
 }
+
+/** 1–2 ký tự viết tắt cho avatar (từ tên; fallback email). */
+export function customerInitials(c: {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}): string {
+  const parts = [c.lastName, c.firstName].filter(Boolean) as string[];
+  if (parts.length)
+    return parts
+      .map((p) => p[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  return (c.email?.[0] ?? '?').toUpperCase();
+}

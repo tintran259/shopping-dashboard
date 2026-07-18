@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import type { CustomerStatus } from '@/types';
 import { ApiError } from '@/lib/api-error';
 import { customersApi } from '../api/customers-api';
-import type { CreateB2bCustomerInput } from '../types';
+import type { CreateB2bCustomerInput, UpdateCustomerInput } from '../types';
 import { customerKeys } from './use-customers';
 
 function toastError(fallback: string) {
@@ -20,6 +20,20 @@ export function useCreateB2bCustomer() {
       toast.success('Đã tạo khách hàng B2B');
     },
     onError: toastError('Tạo khách hàng B2B thất bại'),
+  });
+}
+
+export function useUpdateCustomer(customerId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpdateCustomerInput) =>
+      customersApi.update(customerId, body),
+    onSuccess: (updated) => {
+      qc.setQueryData(customerKeys.detail(customerId), updated);
+      qc.invalidateQueries({ queryKey: customerKeys.all });
+      toast.success('Đã cập nhật thông tin khách hàng');
+    },
+    onError: toastError('Cập nhật thông tin thất bại'),
   });
 }
 
