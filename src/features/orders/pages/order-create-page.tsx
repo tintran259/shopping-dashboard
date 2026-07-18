@@ -2,8 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
-import { ROUTES } from '@/app/routes';
-import { ORDER_FORM_ID, OrderCreateForm } from '../components/order-create-form';
+import { ROUTES } from '@/routes/paths';
+import { ORDER_FORM_ID, OrderCreateForm } from '../components/OrderCreateForm';
 import { useCreateOrder } from '../hooks/use-order-mutations';
 import { formToCreateOrderInput } from '../lib/order-schema';
 

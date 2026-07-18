@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { useBranches } from '@/features/inventory';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 import { usePermissionCatalog, useRoles, useDeleteRole } from '../hooks/use-roles';
 import type { Role } from '../types';
 

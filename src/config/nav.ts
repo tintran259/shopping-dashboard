@@ -15,7 +15,7 @@ import {
   Warehouse,
   type LucideIcon,
 } from 'lucide-react';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 
 export interface NavItem {
   label: string;

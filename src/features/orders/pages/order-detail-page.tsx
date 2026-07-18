@@ -36,11 +36,11 @@ import {
 } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDateTime } from '@/lib/format';
-import { ROUTES } from '@/app/routes';
-import { ExpressBadge } from '../components/express-badge';
-import { OrderItemsTable } from '../components/order-items-table';
-import { OrderStatusStepper } from '../components/order-status-stepper';
-import { ShipmentCard } from '../components/shipment-card';
+import { ROUTES } from '@/routes/paths';
+import { ExpressBadge } from '../components/ExpressBadge';
+import { OrderItemsTable } from '../components/OrderItemsTable';
+import { OrderStatusStepper } from '../components/OrderStatusStepper';
+import { ShipmentCard } from '../components/ShipmentCard';
 import {
   useCancelOrder,
   useConfirmPayment,

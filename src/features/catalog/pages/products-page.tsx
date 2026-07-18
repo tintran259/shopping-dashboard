@@ -21,7 +21,7 @@ import { Pagination } from '@/components/shared/pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProductStatus } from '@/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 import { usePermissions } from '@/features/auth';
 import { useCategories } from '../hooks/use-catalog-refs';
 import { useProducts } from '../hooks/use-products';

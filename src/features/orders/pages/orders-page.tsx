@@ -22,10 +22,10 @@ import { Pagination } from '@/components/shared/pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { OrderChannel, OrderStatus, PaymentStatus, ShipmentStatus } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/format';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 import { usePermissions } from '@/features/auth';
 import { useBranches } from '@/features/inventory';
-import { ExpressBadge } from '../components/express-badge';
+import { ExpressBadge } from '../components/ExpressBadge';
 import { useOrders } from '../hooks/use-orders';
 import {
   ORDER_CHANNEL_LABEL,

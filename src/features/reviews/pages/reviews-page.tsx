@@ -17,7 +17,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { ReviewStatus } from '@/types';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 import { useUpdateReviewStatus } from '../hooks/use-review-mutations';
 import { useReviews } from '../hooks/use-reviews';
 import { reviewerDisplayName } from '../lib/labels';

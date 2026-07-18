@@ -10,7 +10,7 @@ import { QueryBoundary } from '@/components/shared/query-boundary';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CustomerStatus, CustomerType } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/format';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 import { useUpdateCustomerStatus } from '../hooks/use-customer-mutations';
 import { useCustomer } from '../hooks/use-customers';
 import {

@@ -6,8 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { QueryBoundary } from '@/components/shared/query-boundary';
-import { ROUTES } from '@/app/routes';
-import { VOUCHER_FORM_ID, VoucherForm } from '../components/voucher-form';
+import { ROUTES } from '@/routes/paths';
+import { VOUCHER_FORM_ID, VoucherForm } from '../components/VoucherForm';
 import {
   useDeleteVoucher,
   useUpdateVoucher,

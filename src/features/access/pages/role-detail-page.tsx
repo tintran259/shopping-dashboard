@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
-import { ROUTES } from '@/app/routes';
-import { RoleEditor } from '../components/role-editor';
+import { ROUTES } from '@/routes/paths';
+import { RoleEditor } from '../components/RoleEditor';
 import { useRoles } from '../hooks/use-roles';
 
 /** Header rút gọn cho các trạng thái tải/lỗi/không tìm thấy (nội dung dùng RoleEditor). */

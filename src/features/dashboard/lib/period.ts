@@ -1,5 +1,5 @@
 import type { OrderRevenuePoint } from '@/features/orders';
-import type { AreaPoint } from '../components/revenue-area-chart';
+import type { AreaPoint } from '../components/RevenueAreaChart';
 
 export type PeriodKind = 'year' | 'quarter' | 'day';
 

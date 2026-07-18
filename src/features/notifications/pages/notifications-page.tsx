@@ -22,7 +22,7 @@ import {
   useUnreadCount,
 } from '../hooks/use-notifications';
 import { NOTIFICATION_META } from '../lib/notification-meta';
-import { NotificationItem } from '../components/notification-item';
+import { NotificationItem } from '../components/NotificationItem';
 import {
   NOTIFICATION_TYPES,
   type AppNotification,

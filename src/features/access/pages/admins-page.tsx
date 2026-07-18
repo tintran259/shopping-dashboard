@@ -15,7 +15,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { PageHeader } from '@/components/shared/page-header';
-import { AdminFormDialog } from '../components/admin-form-dialog';
+import { AdminFormDialog } from '../components/AdminFormDialog';
 import { useAdmins, useDeleteAdmin, useUpdateAdmin } from '../hooks/use-admins';
 import type { AdminAccount } from '../types';
 

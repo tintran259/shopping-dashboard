@@ -2,8 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
-import { ROUTES } from '@/app/routes';
-import { VOUCHER_FORM_ID, VoucherForm } from '../components/voucher-form';
+import { ROUTES } from '@/routes/paths';
+import { VOUCHER_FORM_ID, VoucherForm } from '../components/VoucherForm';
 import { useCreateVoucher } from '../hooks/use-voucher-mutations';
 import { emptyVoucherForm, formToCreatePayload } from '../lib/schema';
 

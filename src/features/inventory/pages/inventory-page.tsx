@@ -7,10 +7,10 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 import { LOCKED_INVENTORY_STATUSES, PRODUCT_STATUS_LABEL } from '@/features/catalog';
-import { StockEditor } from '../components/stock-editor';
-import { VariantPicker, type PickedInventoryVariant } from '../components/variant-picker';
+import { StockEditor } from '../components/StockEditor';
+import { VariantPicker, type PickedInventoryVariant } from '../components/VariantPicker';
 import { useVariantStock } from '../hooks/use-branches';
 
 /**

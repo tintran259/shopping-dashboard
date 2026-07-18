@@ -1,4 +1,4 @@
-import { RoleEditor } from '../components/role-editor';
+import { RoleEditor } from '../components/RoleEditor';
 
 export function RoleCreatePage() {
   return <RoleEditor role={null} />;

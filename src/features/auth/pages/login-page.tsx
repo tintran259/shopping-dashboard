@@ -7,9 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 import { useAuthStore } from '@/stores/auth-store';
-import { LoginForm } from '../components/login-form';
+import { LoginForm } from '../components/LoginForm';
 
 export function LoginPage() {
   const isAdmin = useAuthStore((s) => s.isAdmin);

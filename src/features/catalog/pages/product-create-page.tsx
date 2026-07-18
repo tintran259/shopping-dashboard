@@ -2,8 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
-import { ROUTES } from '@/app/routes';
-import { PRODUCT_FORM_ID, ProductForm } from '../components/product-form';
+import { ROUTES } from '@/routes/paths';
+import { PRODUCT_FORM_ID, ProductForm } from '../components/ProductForm';
 import { useCreateProduct } from '../hooks/use-product-mutations';
 import { emptyProductForm, formToPayload } from '../lib/product-schema';
 

@@ -6,8 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { QueryBoundary } from '@/components/shared/query-boundary';
-import { ROUTES } from '@/app/routes';
-import { PRODUCT_FORM_ID, ProductForm } from '../components/product-form';
+import { ROUTES } from '@/routes/paths';
+import { PRODUCT_FORM_ID, ProductForm } from '../components/ProductForm';
 import {
   useDeleteProduct,
   useUpdateProduct,

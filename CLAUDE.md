@@ -65,10 +65,10 @@ The most widely-used React convention, and consistent with the storefront's `fea
 
 ```
 src/
-├── app/                  # app shell: router, providers, layouts
-│   ├── routes/           # route tree (React Router data router)
-│   ├── providers.tsx     # QueryClientProvider, ThemeProvider (next-themes), sonner Toaster
-│   └── app.tsx
+├── routes/               # router.tsx (data router) + paths.ts (ROUTES) + route guards
+│                         #   (protected-route, permission-route, not-found-page)
+├── providers/            # index.tsx = AppProviders (QueryClientProvider, ThemeProvider, Toaster)
+├── layouts/              # dashboard-layout + shell UI (sidebar, topbar, account-menu, theme-toggle)
 ├── features/             # ONE feature = ONE business domain (not one screen)
 │   └── orders/
 │       ├── api/          # React Query hooks (useOrders, useUpdateOrderStatus…)
@@ -85,6 +85,10 @@ src/
 ├── config/               # typed env, constants (enum labels)
 └── types/                # global types
 ```
+
+> **No `src/app/` shell** — it was split into `routes/` + `providers/` + `layouts/`
+> (router/paths import from `@/routes/*`, providers from `@/providers`, shell from
+> `@/layouts/*`). Dependency direction stays one-way: `routes → layouts → features → components/lib`.
 
 ### Binding rules
 

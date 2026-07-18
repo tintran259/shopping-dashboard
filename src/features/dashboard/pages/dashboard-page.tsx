@@ -18,12 +18,12 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { OrderStatus } from '@/types';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 import { useBranches } from '@/features/inventory';
 import { useOrders, useOrderSummary } from '@/features/orders';
-import { RevenueAreaChart } from '../components/revenue-area-chart';
-import { OrdersBarChart, type StatusBar } from '../components/orders-bar-chart';
-import { PeriodFilter } from '../components/period-filter';
+import { RevenueAreaChart } from '../components/RevenueAreaChart';
+import { OrdersBarChart, type StatusBar } from '../components/OrdersBarChart';
+import { PeriodFilter } from '../components/PeriodFilter';
 import { buildAreaSeries, defaultPeriod, periodRange } from '../lib/period';
 
 /**

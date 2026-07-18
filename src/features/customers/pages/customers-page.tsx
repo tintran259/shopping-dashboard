@@ -19,8 +19,8 @@ import { Pagination } from '@/components/shared/pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CustomerStatus, CustomerType } from '@/types';
 import { formatDate } from '@/lib/format';
-import { ROUTES } from '@/app/routes';
-import { CreateB2bCustomerDialog } from '../components/create-b2b-customer-dialog';
+import { ROUTES } from '@/routes/paths';
+import { CreateB2bCustomerDialog } from '../components/CreateB2bCustomerDialog';
 import { useCustomers } from '../hooks/use-customers';
 import {
   CUSTOMER_STATUS_LABEL,

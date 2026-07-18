@@ -20,7 +20,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { ROUTES } from '@/app/routes';
+import { ROUTES } from '@/routes/paths';
 import { usePermissions } from '@/features/auth';
 import { useDeleteVoucher } from '../hooks/use-voucher-mutations';
 import { useVouchers, useVoucherStats } from '../hooks/use-vouchers';

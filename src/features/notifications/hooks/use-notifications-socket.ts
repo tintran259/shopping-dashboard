@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
 import { env } from '@/config/env';
 import { useAuthStore } from '@/stores/auth-store';
-import { showNotificationToast } from '../components/notification-toast';
+import { showNotificationToast } from '../components/NotificationToast';
 import { notificationKeys } from './use-notifications';
 import type { AppNotification } from '../types';
 
