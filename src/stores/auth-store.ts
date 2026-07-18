@@ -21,6 +21,9 @@ export interface AuthUser {
   branchIds?: string[];
   staffRoleId?: string | null;
   staffRoleName?: string | null;
+  /** Auto-login CMS: mở `${ssoUrl}?token=${token}` → CMS set cookie & vào /admin.
+   *  Cấp sẵn khi đăng nhập (chỉ user có `cms.view`); null nếu CMS chưa sẵn sàng. */
+  cms?: { ssoUrl: string; token: string } | null;
 }
 
 /** true nếu tài khoản được vào Back Office (nhân viên hoặc super admin). */

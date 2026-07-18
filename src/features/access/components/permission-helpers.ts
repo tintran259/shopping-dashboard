@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  Newspaper,
   Package,
   ShoppingCart,
   Star,
@@ -19,6 +20,7 @@ export const FEATURE_ICON: Record<string, LucideIcon> = {
   vouchers: Ticket,
   reviews: Star,
   customers: Users,
+  cms: Newspaper,
 };
 
 const NOUN: Record<string, string> = {
@@ -45,10 +47,12 @@ const DESC: Record<string, string> = {
 
 export function actionLabel(feature: string, action: string): string {
   if (feature === 'dashboard') return 'Xem tổng quan';
+  if (feature === 'cms') return 'Truy cập CMS';
   return `${VERB[action] ?? action} ${NOUN[feature] ?? feature}`;
 }
 export function actionDesc(feature: string, action: string): string {
   if (feature === 'dashboard') return 'Xem bảng điều khiển & thống kê';
+  if (feature === 'cms') return 'Mở & đăng nhập trang quản trị nội dung (Strapi)';
   return DESC[action] ?? '';
 }
 

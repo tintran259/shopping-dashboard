@@ -3,6 +3,7 @@ import {
   FolderTree,
   LayoutDashboard,
   MapPin,
+  Newspaper,
   Package,
   ShieldCheck,
   ShoppingCart,
@@ -26,6 +27,8 @@ export interface NavItem {
   permission?: string;
   /** Chỉ Super Admin thấy (màn quản trị role/tài khoản admin). */
   superAdminOnly?: boolean;
+  /** Mở cửa sổ mới thay vì điều hướng nội bộ (vd auto-login CMS). `to` chỉ là id. */
+  external?: boolean;
 }
 
 export interface NavGroup {
@@ -127,6 +130,13 @@ export const NAV_GROUPS: NavGroup[] = [
         to: ROUTES.locations,
         icon: MapPin,
         permission: 'inventory.view',
+      },
+      {
+        label: 'CMS (Nội dung)',
+        to: '#cms',
+        icon: Newspaper,
+        permission: 'cms.view',
+        external: true,
       },
     ],
   },

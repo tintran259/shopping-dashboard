@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { Leaf } from 'lucide-react';
+import { ExternalLink, Leaf } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { usePermissions } from '@/features/auth';
+import { useOpenCms } from '@/features/cms';
 import { NAV_GROUPS } from '@/config/nav';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/stores/ui-store';
@@ -10,6 +11,7 @@ export function Sidebar() {
   const location = useLocation();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const { can, isSuperAdmin } = usePermissions();
+  const { openCms, isPending: openingCms } = useOpenCms();
 
   // Ẩn mục không có quyền `view` (và mục super-admin-only nếu không phải super
   // admin); ẩn luôn nhóm rỗng sau khi lọc.
@@ -59,19 +61,48 @@ export function Sidebar() {
               </p>
             )}
             {group.items.map((item) => {
-              const active = isActive(item.to, item.matchPrefixes);
               const Icon = item.icon;
+              const baseClass = cn(
+                'flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors',
+                collapsed && 'justify-center',
+              );
+
+              // Mục "mở cửa sổ mới" (vd CMS) — nút hành động, không phải route.
+              if (item.external) {
+                return (
+                  <button
+                    key={item.to}
+                    type="button"
+                    title={item.label}
+                    disabled={openingCms}
+                    onClick={openCms}
+                    className={cn(
+                      baseClass,
+                      'w-full text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-60',
+                    )}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    {!collapsed && (
+                      <>
+                        <span className="truncate">{item.label}</span>
+                        <ExternalLink className="ml-auto size-3.5 shrink-0 opacity-60" />
+                      </>
+                    )}
+                  </button>
+                );
+              }
+
+              const active = isActive(item.to, item.matchPrefixes);
               return (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   title={item.label}
                   className={cn(
-                    'flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors',
+                    baseClass,
                     active
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                    collapsed && 'justify-center',
                   )}
                 >
                   <Icon className="size-4 shrink-0" />
