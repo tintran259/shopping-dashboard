@@ -95,8 +95,9 @@ src/
 - **One feature = one business domain.** A screen is not a feature; `orders`, `catalog`,
   `inventory` are.
 - **No deep cross-feature imports.** Features talk to each other only through
-  `features/<x>/index.ts`. Dependency direction is one-way: `app → features → components/lib`.
-  Never `lib → features` or feature ↔ feature internals.
+  `features/<x>/index.ts`. Dependency direction is one-way:
+  `routes → layouts → features → components/lib`. Never `lib → features` or
+  feature ↔ feature internals.
 - **Server state = React Query, client state = Zustand.** Do not duplicate server state in
   Zustand. Flow is always `Component → hook (React Query) → api function → api-client`.
 - **Never call the API inside a component.** It goes through a feature `api/` hook.
@@ -107,7 +108,49 @@ src/
   `admin-order-query.dto.ts` / `admin-order-summary-query.dto.ts` for the pattern), don't
   work around it in the FE. This applies to every list screen (Orders, Products, future Order
   create's product picker, etc.), not just the ones that exist today.
-- Files kebab-case; components PascalCase; hooks `useXxx`.
+
+### Component & file conventions (refactor rules)
+
+These are enforced going forward; when you touch a file that breaks one, fix it.
+
+- **Folder-per-component for feature UI.** Every component under
+  `features/<f>/components/` is its own folder `ComponentName/index.tsx`
+  (PascalCase folder) — never a flat `foo-bar.tsx` in `components/`. Co-locate a
+  component's private helpers/sub-parts inside its folder. Everything else stays
+  a **kebab-case file**: pages (`orders-page.tsx`), hooks (`use-orders.ts`), api
+  (`orders-api.ts`), lib/utils (`category-tree.ts`), types (`index.ts`). Barrels
+  are `index.ts`. Components PascalCase, hooks `useXxx`, services `*.service.ts`
+  (BE side).
+- **Pages are thin** (`features/<f>/pages/*.tsx`): only render layout, connect
+  data (call hooks), and compose components. No large UI blocks and no business
+  logic inside a page — extract those to a component (UI) or a hook (logic).
+- **One component = one responsibility (SRP).** Split a screen into focused
+  pieces (e.g. `OrderHeader`, `OrderFilter`, `OrderTable`, `OrderPagination`,
+  `EmptyState`) instead of one giant component.
+- **Business logic lives in hooks / lib, not components.** Reused or non-trivial
+  logic → a custom hook (`use-*.ts`) or a `lib/*.ts` util. Components render UI.
+  Zod schemas + derived form types + constants → `lib/<x>-schema.ts` (see
+  `catalog/lib/category-schema.ts`), not inline in the component.
+- **API only through the layered flow:** `component → feature hook (React Query)
+  → api function (`api/*.ts`) → api-client`. Never `fetch`/`apiClient` inside a
+  component.
+- **Shared vs feature components.** UI used by >1 feature → `src/components/shared`
+  (or `src/components/ui` for shadcn primitives). UI used by one feature →
+  `features/<f>/components/`.
+- **~200 lines/file as a soft cap.** Over it usually means a file does too much —
+  split into component / hook / util / lib. Exception: a single cohesive unit
+  (one form, one page's composition) may run slightly over — **prefer readable
+  over short; don't over-split into prop-drilled micro-components.**
+- **Types out of components** → `features/<f>/types/` (feature) or `src/types/`
+  (global). **No hard-coded magic numbers/strings** — name them as constants (in
+  the relevant `lib`/`config`) or enum-label maps in `config/`.
+- **Import order:** React → third-party → `@/components` (ui/shared) → `@/…`
+  (routes/layouts/stores/lib/config) → feature-internal (`../hooks`, `../lib`,
+  `../components/X`) → relative → types. Keep imports/vars dead-code-free (lint
+  enforces).
+- **Clean code:** DRY, early return over nested if/else, descriptive names. Do
+  **not** change business logic, API contracts, props, or UI/UX when refactoring
+  for structure only.
 
 ## API Integration
 
