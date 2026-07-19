@@ -406,6 +406,13 @@ Confirm/extend the BE before building these; stub the UI otherwise:
   destructive actions with `ConfirmDialog`.
 - **Forms:** zod schemas, inline field errors, disable submit while pending.
 - Responsive + dark mode. All UI copy in **Vietnamese**.
+- **Design với `design-taste` skill.** Khi thiết kế/redesign UI cho bất kỳ feature
+  nào (trang mới, dialog, thẻ, danh sách…), áp dụng skill **`design-taste-frontend`**
+  (anti-slop): phân cấp typography rõ, ô icon bo góc + gradient/ring nhẹ, bóng đổ
+  ám màu accent (không đen thuần), một accent color nhất quán (primary), đủ trạng
+  thái hover/active/empty/loading/error, dùng token theme (light/dark). Ưu tiên
+  đọc/quét được hơn là dày đặc. Xem các mẫu đã làm: Notification (toast/bell),
+  Customer detail, Reviews (thẻ tổng quan + bảng + detail dialog).
 
 ## Code Generation Rules
 

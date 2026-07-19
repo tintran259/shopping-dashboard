@@ -23,3 +23,17 @@ export function useUpdateReviewStatus() {
     onError: toastError('Cập nhật trạng thái thất bại'),
   });
 }
+
+/** Phản hồi công khai cho đánh giá (chuỗi rỗng = xóa phản hồi). */
+export function useReplyToReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reply }: { id: string; reply: string }) =>
+      reviewsApi.reply(id, reply),
+    onSuccess: (_data, { reply }) => {
+      qc.invalidateQueries({ queryKey: reviewKeys.all });
+      toast.success(reply.trim() ? 'Đã gửi phản hồi' : 'Đã xóa phản hồi');
+    },
+    onError: toastError('Gửi phản hồi thất bại'),
+  });
+}

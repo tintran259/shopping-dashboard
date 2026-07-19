@@ -3,6 +3,7 @@ import type { BaseEntity } from '@/types';
 /** Đồng bộ với `NotificationType` ở BE (`common/enums.ts`). */
 export const NOTIFICATION_TYPES = [
   'order',
+  'review',
   'complaint',
   'refund',
   'inventory',

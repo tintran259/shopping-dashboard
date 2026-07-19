@@ -4,6 +4,7 @@ import {
   RotateCcw,
   Settings2,
   ShoppingCart,
+  Star,
   Tag,
   Ticket,
   Users,
@@ -25,6 +26,12 @@ export const NOTIFICATION_META: Record<NotificationType, TypeMeta> = {
     label: 'Đơn hàng',
     description: 'Khi có đơn hàng mới tại chi nhánh bạn quản lý.',
     icon: ShoppingCart,
+    implemented: true,
+  },
+  review: {
+    label: 'Đánh giá',
+    description: 'Khi sản phẩm bị đánh giá điểm thấp (≤2★) cần xử lý.',
+    icon: Star,
     implemented: true,
   },
   complaint: {

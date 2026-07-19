@@ -5,6 +5,7 @@ export {
   useOrders,
   useOrder,
   useOrderSummary,
+  useShipment,
   orderKeys,
 } from './hooks/use-orders';
 export { ORDER_STATUS_LABEL, PAYMENT_STATUS_LABEL } from './lib/labels';
@@ -14,4 +15,6 @@ export type {
   OrderSummary,
   OrderSummaryParams,
   OrderRevenuePoint,
+  Shipment,
+  ShippingAddressSnapshot,
 } from './types';
